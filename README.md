@@ -1,11 +1,15 @@
-<div align="center">
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+This contains everything you need to run your app locally.
 
-  <h1>Built with AI Studio</h2>
+View your app in AI Studio: https://ai.studio/apps/629e3990-7fca-484b-8e03-ea6f5d4d1df3
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Run Locally
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+**Prerequisites:**  Node.js
 
-</div>
+
+1. Install dependencies:
+   `npm install`
+
+3. Run the app:
+   `npm run dev`

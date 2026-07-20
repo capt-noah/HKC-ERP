@@ -1,0 +1,55 @@
+import { Routes, Route, Navigate } from "react-router-dom"
+import SalesDashboard from "@/pages/sales/SalesDashboard"
+import PurchaseOrders from "@/pages/PurchaseOrders"
+import SalesOrders from "@/pages/SalesOrders"
+import InventoryDashboard from "@/pages/inventory/InventoryDashboard"
+import StockProducts from "@/pages/inventory/StockProducts"
+import Reports from "@/pages/inventory/Reports"
+import HRDashboard from "@/pages/HRDashboard"
+import ControlCenter from "@/pages/ControlCenter"
+import FinanceOverview from "@/pages/finance/FinanceOverview"
+import Ledger from "@/pages/finance/Ledger"
+import Invoices from "@/pages/finance/Invoices"
+import Expenses from "@/pages/finance/Expenses"
+import Employees from "@/pages/hr/Employees"
+import Payroll from "@/pages/hr/Payroll"
+import AttendanceLeave from "@/pages/hr/AttendanceLeave"
+import UserManagement from "@/pages/admin/UserManagement"
+import AdminSettings from "@/pages/admin/AdminSettings"
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/sales" replace />} />
+
+      {/* Sales section */}
+      <Route path="/sales" element={<SalesDashboard />} />
+      <Route path="/sales/purchase-orders" element={<PurchaseOrders />} />
+      <Route path="/sales/sales-orders" element={<SalesOrders />} />
+
+      {/* Inventory section */}
+      <Route path="/inventory" element={<InventoryDashboard />} />
+      <Route path="/inventory/stock" element={<StockProducts />} />
+      <Route path="/inventory/reports" element={<Reports />} />
+
+      {/* Finance section */}
+      <Route path="/finance" element={<FinanceOverview />} />
+      <Route path="/finance/ledger" element={<Ledger />} />
+      <Route path="/finance/invoices" element={<Invoices />} />
+      <Route path="/finance/expenses" element={<Expenses />} />
+
+      {/* HR section */}
+      <Route path="/hr" element={<HRDashboard />} />
+      <Route path="/hr/employees" element={<Employees />} />
+      <Route path="/hr/payroll" element={<Payroll />} />
+      <Route path="/hr/attendance-leave" element={<AttendanceLeave />} />
+
+      {/* Admin section */}
+      <Route path="/admin" element={<ControlCenter />} />
+      <Route path="/admin/users" element={<UserManagement />} />
+      <Route path="/admin/settings" element={<AdminSettings />} />
+    </Routes>
+  )
+}
+
+export default App

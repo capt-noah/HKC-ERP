@@ -1,0 +1,8 @@
+{
+  "name": "Remix: lumina-erp",
+  "description": "Imported from GitHub: capt-noah/lumina-erp",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
