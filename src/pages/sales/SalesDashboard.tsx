@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { motion } from "framer-motion"
 import { 
   Plus, 
@@ -23,34 +22,33 @@ import { GlassCard } from "@/components/GlassCard"
 import { SubPageNav } from "@/components/SubPageNav"
 import { navSections, getSectionChildren } from "@/lib/nav-config"
 import { useFeedback } from "@/context/FeedbackContext"
+import { useErpStore } from "@/lib/erpStore"
 
 const fade = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 const stagger = { visible: { transition: { staggerChildren: 0.05 } } }
 
 const SALES_REVENUE_DATA = [
-  { name: "Jan", "Sales Revenue": 450000, "Purchase Capital": 220000 },
-  { name: "Feb", "Sales Revenue": 510000, "Purchase Capital": 250000 },
-  { name: "Mar", "Sales Revenue": 490000, "Purchase Capital": 280000 },
-  { name: "Apr", "Sales Revenue": 620000, "Purchase Capital": 310000 },
-  { name: "May", "Sales Revenue": 710000, "Purchase Capital": 330000 },
-  { name: "Jun", "Sales Revenue": 850000, "Purchase Capital": 340000 },
+  { name: "Jan", "Sales Revenue": 1450000, "Purchase Capital": 820000 },
+  { name: "Feb", "Sales Revenue": 1610000, "Purchase Capital": 950000 },
+  { name: "Mar", "Sales Revenue": 1890000, "Purchase Capital": 1080000 },
+  { name: "Apr", "Sales Revenue": 2120000, "Purchase Capital": 1210000 },
+  { name: "May", "Sales Revenue": 2410000, "Purchase Capital": 1330000 },
+  { name: "Jun", "Sales Revenue": 2850000, "Purchase Capital": 1540000 },
 ]
 
 export default function SalesDashboard() {
   const { showToast } = useFeedback()
-  
-  // Quick status updates mock
-  const [salesOrders] = useState([
-    { id: "SO-1102", client: "Red Cross Pharma", total: "ETB 145,200", status: "In Shipped State" },
-    { id: "SO-1103", client: "Mekelle Medical Supplies", total: "ETB 82,400", status: "Picking Active" },
-    { id: "SO-1104", client: "Selam Hospital", total: "ETB 210,000", status: "Quotes Drafted" },
-  ])
+  const erp = useErpStore()
+  const salesOrders = erp.getSalesOrders()
+  const purchaseOrders = erp.getPurchaseOrders()
+
+  const totalRevenue = salesOrders.reduce((sum, so) => sum + so.amount, 0)
 
   const handleAction = (title: string) => {
     showToast(
-      "New Order Wizard",
+      "HKC Trading Sales Action",
       "success",
-      `Launched setup flow for: ${title}`
+      `Launched contract pipeline for: ${title}`
     )
   }
 
@@ -62,9 +60,9 @@ export default function SalesDashboard() {
         {/* Header Block */}
         <motion.div variants={fade} className="flex flex-col md:flex-row md:items-start md:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-black text-black tracking-tight mt-1">Sales Dashboard</h1>
+            <h1 className="text-3xl font-black text-black tracking-tight mt-1">Sales & Trade Dashboard</h1>
             <p className="text-xs font-semibold text-zinc-500 max-w-xl leading-relaxed mt-1">
-              Audit customer pipeline conversions, track revenue growth vectors, and oversee ongoing purchase-and-sales contracts.
+              Oversee export contracts from WH1 (Coffee, Sesame, Teff) and domestic veterinary distribution from WH2 & WH3.
             </p>
           </div>
 
@@ -75,7 +73,7 @@ export default function SalesDashboard() {
               onClick={() => handleAction("Sales Order")}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-zinc-950 hover:bg-zinc-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 shrink-0"
             >
-              <Plus className="size-4" /> New Sales Order
+              <Plus className="size-4" /> New Sales Contract
             </button>
           </div>
         </motion.div>
@@ -83,10 +81,10 @@ export default function SalesDashboard() {
         {/* 4 KPIs Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "MONTHLY REVENUE", value: "ETB 850,000", Icon: DollarSign, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", note: "YTD Sales Target on track" },
-            { label: "SALES GROWTH (H1)", value: "+38.4%", Icon: TrendingUp, iconBg: "bg-green-100", iconColor: "text-green-700", note: "Compounded weekly" },
-            { label: "OPEN SALES ORDERS", value: "142 orders", Icon: ShoppingBag, iconBg: "bg-black/5", iconColor: "text-zinc-600", note: "Pending customer dispatch" },
-            { label: "ACTIVE PURCHASE POs", value: "12 drafts", Icon: Layers, iconBg: "bg-black/5", iconColor: "text-zinc-600", note: "Procurement chain in flow" },
+            { label: "PIPELINE REVENUE", value: `ETB ${totalRevenue.toLocaleString()}`, Icon: DollarSign, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", note: "WH1 Export + WH2/WH3 Local" },
+            { label: "EXPORT GROWTH (H1)", value: "+42.8%", Icon: TrendingUp, iconBg: "bg-green-100", iconColor: "text-green-700", note: "EU, Asia & USA Markets" },
+            { label: "OPEN SALES ORDERS", value: `${salesOrders.length} orders`, Icon: ShoppingBag, iconBg: "bg-black/5", iconColor: "text-zinc-600", note: "Active dispatch contracts" },
+            { label: "ACTIVE PURCHASE POs", value: `${purchaseOrders.length} POs`, Icon: Layers, iconBg: "bg-black/5", iconColor: "text-zinc-600", note: "Sourcing & Import POs" },
           ].map((kpi, idx) => {
             const Icon = kpi.Icon
             return (
@@ -169,16 +167,16 @@ export default function SalesDashboard() {
               </div>
 
               <div className="space-y-3.5">
-                {salesOrders.map((order) => (
+                {salesOrders.slice(0, 4).map((order) => (
                   <div key={order.id} className="p-3.5 bg-zinc-50/50 border border-zinc-150/40 rounded-2xl">
                     <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-[10px] font-black font-mono text-zinc-400 uppercase">{order.id}</span>
+                      <span className="text-[10px] font-black font-mono text-zinc-400 uppercase">{order.id} ({order.warehouse})</span>
                       <span className="text-[9px] font-black uppercase text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                        {order.status}
+                        {order.stage}
                       </span>
                     </div>
-                    <h4 className="text-xs font-black text-zinc-900 leading-tight mb-1">{order.client}</h4>
-                    <span className="font-mono text-xs font-black text-zinc-800 block mt-1.5">{order.total}</span>
+                    <h4 className="text-xs font-black text-zinc-900 leading-tight mb-1">{order.customer}</h4>
+                    <span className="font-mono text-xs font-black text-zinc-800 block mt-1.5">ETB {order.amount.toLocaleString()}</span>
                   </div>
                 ))}
               </div>

@@ -17,38 +17,10 @@ import { SubPageNav } from "@/components/SubPageNav"
 import { navSections, getSectionChildren } from "@/lib/nav-config"
 import { useFeedback } from "@/context/FeedbackContext"
 import StoreTransfersTab from "@/components/StoreTransfersTab"
+import { useErpStore, type Product } from "@/lib/erpStore"
 
 const fade = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 const stagger = { visible: { transition: { staggerChildren: 0.05 } } }
-
-interface StockBreakdown {
-  warehouse: string
-  qty: number
-}
-
-interface BatchInfo {
-  batchNo: string
-  qty: number
-  expiry: string
-  status: "Released" | "Pending QA" | "Quarantined"
-}
-
-interface Product {
-  id: string
-  name: string
-  sku: string
-  category: string
-  warehouse: string
-  quantity: number
-  unit: string
-  batch: string
-  expiry: string
-  status: "In Stock" | "Low Stock" | "Quarantined" | "Out of Stock"
-  stockBreakdown: StockBreakdown[]
-  batches: BatchInfo[]
-}
-
-
 
 interface RegulatoryDoc {
   id: string
@@ -59,124 +31,46 @@ interface RegulatoryDoc {
   status: "Valid" | "Expiring Soon" | "Expired"
 }
 
-const initialProducts: Product[] = [
-  {
-    id: "P-101",
-    name: "Lidocaine HCl Monohydrate",
-    sku: "PRD-LID-01",
-    category: "API (Active Pharma Ingredient)",
-    warehouse: "WH1",
-    quantity: 1250,
-    unit: "kg",
-    batch: "B-LD26-09",
-    expiry: "2028-09-12",
-    status: "In Stock",
-    stockBreakdown: [
-      { warehouse: "WH1", qty: 1000 },
-      { warehouse: "WH3", qty: 250 }
-    ],
-    batches: [
-      { batchNo: "B-LD26-09", qty: 1000, expiry: "2028-09-12", status: "Released" },
-      { batchNo: "B-LD26-08", qty: 250, expiry: "2027-05-18", status: "Released" }
-    ]
-  },
-  {
-    id: "P-102",
-    name: "Adenosine Phosphate Buffer",
-    sku: "PRD-ADP-04",
-    category: "Reagents",
-    warehouse: "WH2",
-    quantity: 450,
-    unit: "L",
-    batch: "B-AP26-02",
-    expiry: "2027-11-30",
-    status: "Low Stock",
-    stockBreakdown: [
-      { warehouse: "WH2", qty: 450 }
-    ],
-    batches: [
-      { batchNo: "B-AP26-02", qty: 450, expiry: "2027-11-30", status: "Released" }
-    ]
-  },
-  {
-    id: "P-103",
-    name: "Sodium Chloride USP Grade",
-    sku: "PRD-NAC-12",
-    category: "Excipients",
-    warehouse: "WH3",
-    quantity: 5000,
-    unit: "kg",
-    batch: "B-NC26-44",
-    expiry: "2029-01-15",
-    status: "In Stock",
-    stockBreakdown: [
-      { warehouse: "WH3", qty: 5000 }
-    ],
-    batches: [
-      { batchNo: "B-NC26-44", qty: 5000, expiry: "2029-01-15", status: "Released" }
-    ]
-  },
-  {
-    id: "P-104",
-    name: "Epinephrine Ephedrine Sol.",
-    sku: "PRD-EPI-09",
-    category: "Controlled substances",
-    warehouse: "WH2",
-    quantity: 85,
-    unit: "L",
-    batch: "B-EP26-01",
-    expiry: "2026-12-05",
-    status: "Quarantined",
-    stockBreakdown: [
-      { warehouse: "WH2", qty: 85 }
-    ],
-    batches: [
-      { batchNo: "B-EP26-01", qty: 85, expiry: "2026-12-05", status: "Quarantined" }
-    ]
-  }
-]
-
-
-
 const initialRegulatoryDocs: RegulatoryDoc[] = [
   {
     id: "DOC-301",
-    name: "Certificate of Analysis (CoA) - B-LD26-09",
-    type: "CoA",
-    linkedBatch: "B-LD26-09",
-    expiryDate: "2028-09-12",
+    name: "Export Coffee Phytosanitary Certificate - B-YRG-2026-04",
+    type: "Phytosanitary",
+    linkedBatch: "B-YRG-2026-04",
+    expiryDate: "2027-12-31",
     status: "Valid"
   },
   {
     id: "DOC-302",
-    name: "Drug Master File (DMF) Registration",
-    type: "DMF Registration",
-    linkedBatch: "All Batches",
-    expiryDate: "2030-01-01",
+    name: "Ethiopian FDA Veterinary Import Registration (India LA Injections)",
+    type: "EFDA License",
+    linkedBatch: "B-OXY-IND-99",
+    expiryDate: "2028-05-18",
     status: "Valid"
   },
   {
     id: "DOC-303",
-    name: "Import Customs Clearance License",
+    name: "Customs Import Clearance (China Soluble Powders WH3)",
     type: "Customs License",
-    linkedBatch: "B-NC26-44",
-    expiryDate: "2026-10-31",
+    linkedBatch: "B-AMX-CHN-88",
+    expiryDate: "2028-03-22",
     status: "Valid"
   },
   {
     id: "DOC-304",
-    name: "Stability Testing Report - Q3",
-    type: "Stability Study",
-    linkedBatch: "B-EP26-01",
-    expiryDate: "2026-12-05",
-    status: "Expiring Soon"
+    name: "Quality Analysis & Purity Certificate (Humera Sesame Seeds)",
+    type: "Quality Certificate",
+    linkedBatch: "B-HUM-2026-01",
+    expiryDate: "2027-08-15",
+    status: "Valid"
   }
 ]
 
 export default function StockProducts() {
   const { showToast } = useFeedback()
+  const erp = useErpStore()
+  const products = erp.getProducts()
   const [activeTab, setActiveTab] = useState<"Products" | "Transfers" | "Regulatory Docs">("Products")
-  const [products, setProducts] = useState<Product[]>(initialProducts)
   const [docs, setDocs] = useState<RegulatoryDoc[]>(initialRegulatoryDocs)
 
   // Filters
@@ -194,8 +88,8 @@ export default function StockProducts() {
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [newName, setNewName] = useState("")
   const [newSKU, setNewSKU] = useState("")
-  const [newCategory, setNewCategory] = useState("API (Active Pharma Ingredient)")
-  const [newUnit, setNewUnit] = useState("kg")
+  const [newCategory, setNewCategory] = useState("Agricultural Export (Coffee)")
+  const [newUnit, setNewUnit] = useState("bags (60kg)")
   const [newWarehouse, setNewWarehouse] = useState("WH1")
   const [newQty, setNewQty] = useState<number | "">("")
   const [newBatchNo, setNewBatchNo] = useState("")
@@ -205,7 +99,7 @@ export default function StockProducts() {
 
   // Unique Warehouses & Categories list for filters
   const warehouses = ["ALL", "WH1", "WH2", "WH3"]
-  const categories = ["ALL", "API (Active Pharma Ingredient)", "Reagents", "Excipients", "Controlled substances"]
+  const categories = ["ALL", ...Array.from(new Set(products.map(p => p.category)))]
 
   // Handle Add Product Submission
   const handleAddProduct = (e: React.FormEvent) => {
@@ -227,14 +121,18 @@ export default function StockProducts() {
       warehouse: newWarehouse,
       quantity: qtyNum,
       unit: newUnit,
+      unitCost: 1000,
+      sellingPrice: 1500,
       batch: newBatchNo || "N/A",
       expiry: newExpiry || "N/A",
       status: productStatus,
+      origin: newWarehouse === "WH1" ? "Ethiopia (Local Sourcing)" : newWarehouse === "WH2" ? "India (Import)" : "China (Import)",
+      supplierName: newWarehouse === "WH1" ? "Oromia Farmers Union" : newWarehouse === "WH2" ? "Indian Vet Bio Pharma" : "Shandong Animal Health",
       stockBreakdown: [{ warehouse: newWarehouse, qty: qtyNum }],
       batches: newBatchNo ? [{ batchNo: newBatchNo, qty: qtyNum, expiry: newExpiry, status: "Released" }] : []
     }
 
-    setProducts((prev) => [freshProduct, ...prev])
+    erp.addProduct(freshProduct)
 
     // Create a regulatory document if attached
     if (newHasDoc && newDocName) {
@@ -249,7 +147,7 @@ export default function StockProducts() {
       setDocs((prev) => [freshDoc, ...prev])
     }
 
-    showToast("Stock Item Added", "success", `${newName} (${newSKU}) successfully entered in ledger.`)
+    showToast("Stock Item Added", "success", `${newName} (${newSKU}) successfully entered in HKC Trading ERP.`)
     
     // Reset Form
     setNewName("")
@@ -269,55 +167,44 @@ export default function StockProducts() {
     const targetW = adjustWarehouse || peekProduct.warehouse
     const targetB = adjustBatch || peekProduct.batch
 
-    setProducts((prev) =>
-      prev.map((prod) => {
-        if (prod.id === peekProduct.id) {
-          const updatedQty = Math.max(0, prod.quantity + change)
-          
-          // Update Stock Breakdown
-          let breakdownFound = false
-          const updatedBreakdown = prod.stockBreakdown.map((item) => {
-            if (item.warehouse === targetW) {
-              breakdownFound = true
-              return { ...item, qty: Math.max(0, item.qty + change) }
-            }
-            return item
-          })
-          if (!breakdownFound) {
-            updatedBreakdown.push({ warehouse: targetW, qty: Math.max(0, change) })
-          }
+    const updatedQty = Math.max(0, peekProduct.quantity + change)
+    let breakdownFound = false
+    const updatedBreakdown = (peekProduct.stockBreakdown || []).map((item) => {
+      if (item.warehouse === targetW) {
+        breakdownFound = true
+        return { ...item, qty: Math.max(0, item.qty + change) }
+      }
+      return item
+    })
+    if (!breakdownFound) {
+      updatedBreakdown.push({ warehouse: targetW, qty: Math.max(0, change) })
+    }
 
-          // Update Batches
-          let batchFound = false
-          const updatedBatches = prod.batches.map((b) => {
-            if (b.batchNo === targetB) {
-              batchFound = true
-              return { ...b, qty: Math.max(0, b.qty + change) }
-            }
-            return b
-          })
-          if (!batchFound && targetB !== "N/A") {
-            updatedBatches.push({ batchNo: targetB, qty: Math.max(0, change), expiry: prod.expiry, status: "Released" })
-          }
+    let batchFound = false
+    const updatedBatches = (peekProduct.batches || []).map((b) => {
+      if (b.batchNo === targetB) {
+        batchFound = true
+        return { ...b, qty: Math.max(0, b.qty + change) }
+      }
+      return b
+    })
+    if (!batchFound && targetB !== "N/A") {
+      updatedBatches.push({ batchNo: targetB, qty: Math.max(0, change), expiry: peekProduct.expiry, status: "Released" })
+    }
 
-          const updatedStatus: "In Stock" | "Low Stock" | "Out of Stock" | "Quarantined" = 
-            updatedQty > 500 ? "In Stock" : updatedQty > 0 ? "Low Stock" : "Out of Stock"
+    const updatedStatus: "In Stock" | "Low Stock" | "Out of Stock" | "Quarantined" = 
+      updatedQty > 500 ? "In Stock" : updatedQty > 0 ? "Low Stock" : "Out of Stock"
 
-          const result: Product = {
-            ...prod,
-            quantity: updatedQty,
-            stockBreakdown: updatedBreakdown.filter((x) => x.qty > 0),
-            batches: updatedBatches.filter((x) => x.qty > 0),
-            status: updatedStatus
-          }
+    const updatedProduct: Product = {
+      ...peekProduct,
+      quantity: updatedQty,
+      stockBreakdown: updatedBreakdown.filter((x) => x.qty > 0),
+      batches: updatedBatches.filter((x) => x.qty > 0),
+      status: updatedStatus
+    }
 
-          // Refresh the Quick Peek display
-          setPeekProduct(result)
-          return result
-        }
-        return prod
-      })
-    )
+    erp.updateProduct(peekProduct.id, updatedProduct)
+    setPeekProduct(updatedProduct)
 
     showToast("Stock Adjusted", "success", `Stock quantity adjusted by ${change > 0 ? "+" : ""}${change} ${peekProduct.unit}.`)
     setAdjustAmount("")
@@ -351,7 +238,7 @@ export default function StockProducts() {
           <div>
             <h1 className="text-3xl font-black text-black tracking-tight">Stock & Products</h1>
             <p className="text-xs font-semibold text-zinc-500 max-w-xl leading-relaxed mt-1">
-              Oversee high-compliance pharmaceutical ingredients, trace certified batches, and clear critical QA regulatory documents.
+              Oversee HKC Trading multi-warehouse inventory across WH1 (Agricultural Export Hub), WH2 (Veterinary India Imports), and WH3 (Veterinary China Imports).
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 self-end md:self-start">
@@ -359,8 +246,8 @@ export default function StockProducts() {
             
             <button 
               onClick={() => {
-                setNewCategory("API (Active Pharma Ingredient)")
-                setNewWarehouse("Cold-Chain A")
+                setNewCategory("Agricultural Export (Coffee)")
+                setNewWarehouse("WH1")
                 setIsAddOpen(true)
               }}
               className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-zinc-950 hover:bg-zinc-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 shrink-0"

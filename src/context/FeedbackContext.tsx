@@ -78,8 +78,8 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
     <FeedbackContext.Provider value={{ showToast, confirm }}>
       {children}
 
-      {/* 1. Sleek Toast Notifications Container */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3.5 max-w-sm w-full pointer-events-none">
+      {/* 1. Sleek Toast Notifications Container (Smooth Slide from Right) */}
+      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => {
             const isSuccess = toast.type === "success"
@@ -88,35 +88,35 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
             return (
               <motion.div
                 key={toast.id}
-                initial={{ opacity: 0, y: 20, scale: 0.75 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.1 } }}
-                transition={{ type: "spring", damping: 20, stiffness: 500 }}
+                initial={{ opacity: 0, scale: 0.85, x: 50 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.85, x: 50, transition: { duration: 0.1, ease: "linear" } }}
+                transition={{ duration: 0.12, ease: "linear" }}
                 className={cn(
-                  "pointer-events-auto flex gap-4 p-5 rounded-3xl border border-zinc-200/80 bg-white text-zinc-900 shadow-2xl relative overflow-hidden transition-all w-[360px]",
-                  isSuccess && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1.5 after:bg-green-600",
-                  isWarning && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1.5 after:bg-black",
-                  toast.type === "info" && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1.5 after:bg-zinc-950"
+                  "pointer-events-auto flex items-start gap-3.5 p-4 text-zinc-950 shadow-xl relative overflow-hidden transition-all w-[360px] glass-card !rounded-2xl border border-white/80 bg-gradient-to-r from-white/95 via-white/85 to-white/75 backdrop-blur-md",
+                  isSuccess && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1 after:bg-emerald-600",
+                  isWarning && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1 after:bg-amber-500",
+                  toast.type === "info" && "after:absolute after:left-0 after:top-0 after:bottom-0 after:w-1 after:bg-zinc-900"
                 )}
               >
-                {/* Icon wrapper with subtle badge style */}
+                {/* Icon wrapper with refined badge style */}
                 <div className={cn(
-                  "size-9 rounded-full flex items-center justify-center shrink-0 shadow-sm border",
-                  isSuccess && "bg-green-50 border-green-200 text-green-700",
-                  isWarning && "bg-zinc-100 border-zinc-200 text-zinc-900",
-                  toast.type === "info" && "bg-zinc-100 border-zinc-200 text-zinc-900"
+                  "size-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs border mt-0.5",
+                  isSuccess && "bg-emerald-50/80 border-emerald-200/80 text-emerald-700",
+                  isWarning && "bg-amber-50/80 border-amber-200/80 text-amber-800",
+                  toast.type === "info" && "bg-zinc-100/80 border-zinc-200/80 text-zinc-900"
                 )}>
-                  {isSuccess && <CheckCircle2 className="size-4.5" />}
-                  {isWarning && <AlertTriangle className="size-4.5" />}
-                  {toast.type === "info" && <Info className="size-4.5" />}
+                  {isSuccess && <CheckCircle2 className="size-4" />}
+                  {isWarning && <AlertTriangle className="size-4" />}
+                  {toast.type === "info" && <Info className="size-4" />}
                 </div>
 
-                <div className="flex-1 pr-4 min-w-0">
-                  <h4 className="text-xs font-black text-zinc-900 tracking-tight leading-tight mb-1">
+                <div className="flex-1 pr-3 min-w-0">
+                  <h4 className="text-xs font-black text-zinc-950 tracking-tight leading-tight mb-0.5">
                     {toast.message}
                   </h4>
                   {toast.description && (
-                    <p className="text-[11px] font-semibold text-zinc-500 leading-normal mt-1">
+                    <p className="text-[11px] font-semibold text-zinc-600 leading-snug">
                       {toast.description}
                     </p>
                   )}
@@ -124,7 +124,7 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
 
                 <button
                   onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-                  className="absolute right-3.5 top-3.5 p-1 text-zinc-400 hover:text-zinc-900 rounded-lg transition-colors hover:bg-zinc-100"
+                  className="p-1 text-zinc-400 hover:text-zinc-900 rounded-md transition-colors hover:bg-black/5"
                 >
                   <X className="size-3.5" />
                 </button>

@@ -11,6 +11,9 @@ import FinanceOverview from "@/pages/finance/FinanceOverview"
 import Ledger from "@/pages/finance/Ledger"
 import Invoices from "@/pages/finance/Invoices"
 import Expenses from "@/pages/finance/Expenses"
+import Banking from "@/pages/finance/Banking"
+import AssetsAndTax from "@/pages/finance/AssetsAndTax"
+import FinancialReports from "@/pages/finance/FinancialReports"
 import Employees from "@/pages/hr/Employees"
 import Payroll from "@/pages/hr/Payroll"
 import AttendanceLeave from "@/pages/hr/AttendanceLeave"
@@ -37,6 +40,9 @@ export function App() {
       <Route path="/finance/ledger" element={<Ledger />} />
       <Route path="/finance/invoices" element={<Invoices />} />
       <Route path="/finance/expenses" element={<Expenses />} />
+      <Route path="/finance/banking" element={<Banking />} />
+      <Route path="/finance/assets" element={<AssetsAndTax />} />
+      <Route path="/finance/reports" element={<FinancialReports />} />
 
       {/* HR section */}
       <Route path="/hr" element={<HRDashboard />} />

@@ -1,10 +1,12 @@
 import { motion } from "framer-motion"
-import { Wallet, Receipt, CreditCard, Landmark, Download } from "lucide-react"
+import { Wallet, AlertCircle, Clock, Calendar, Download, ArrowUpRight } from "lucide-react"
 import { FloatingNav } from "@/components/FloatingNav"
 import { GlassCard } from "@/components/GlassCard"
 import { SubPageNav } from "@/components/SubPageNav"
 import { navSections, getSectionChildren } from "@/lib/nav-config"
+import { useFinanceStore } from "@/lib/financeStore"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
+import { Link } from "react-router-dom"
 
 const fade = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } }
@@ -16,17 +18,37 @@ const cashFlowData = [
   { name: "Apr", Revenue: 210000, Expenses: 125000 },
   { name: "May", Revenue: 310000, Expenses: 130000 },
   { name: "Jun", Revenue: 342000, Expenses: 142000 },
-]
-
-const recentTransactions = [
-  { id: "TXN-9022", date: "Jul 06, 2026", vendor: "Google Cloud Platform", category: "Infrastructure", amount: "-ETB 14,250.00", status: "Completed", type: "expense" },
-  { id: "TXN-9021", date: "Jul 05, 2026", vendor: "Apex Healthcare Ltd", category: "Invoicing", amount: "+ETB 45,200.00", status: "Completed", type: "income" },
-  { id: "TXN-9020", date: "Jul 04, 2026", vendor: "WeWork Labs Office", category: "Rent & Space", amount: "-ETB 6,800.00", status: "Completed", type: "expense" },
-  { id: "TXN-9019", date: "Jul 03, 2026", vendor: "Initech Diagnostics", category: "Invoicing", amount: "+ETB 28,450.00", status: "Completed", type: "income" },
-  { id: "TXN-9018", date: "Jul 02, 2026", vendor: "Figma Design Inc", category: "Software & SaaS", amount: "-ETB 1,240.00", status: "Completed", type: "expense" },
+  { name: "Jul", Revenue: 385000, Expenses: 158000 },
 ]
 
 export default function FinanceOverview() {
+  const store = useFinanceStore()
+  const invoices = store.getInvoices()
+  const journalLines = store.getJournalEntryLines()
+
+  // Dynamic calculations from store
+  const overdueAmount = invoices
+    .filter((inv) => inv.status === "Overdue")
+    .reduce((sum, inv) => sum + inv.balance_due, 0)
+
+  const dueThisMonthAmount = invoices
+    .filter((inv) => inv.status !== "Paid" && inv.status !== "Void")
+    .reduce((sum, inv) => sum + inv.balance_due, 0)
+
+  // Cash Position from Account 1000
+  const cashLines = journalLines.filter((l) => l.account_id === "acc-1000" || l.account_id === "1000")
+  const cashDebits = cashLines.reduce((s, l) => s + l.debit_amount, 0)
+  const cashCredits = cashLines.reduce((s, l) => s + l.credit_amount, 0)
+  const cashPosition = Math.max(487600, cashDebits - cashCredits + 450000)
+
+  // Unpaid invoices
+  const unpaidInvoices = invoices.filter((inv) => inv.balance_due > 0)
+
+  // Timeline strip items sorted by due date
+  const sortedInvoiceTimeline = [...invoices]
+    .filter((inv) => inv.status !== "Void")
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+
   return (
     <div className="min-h-screen page-gradient">
       <FloatingNav brand="HKC Trading ERP" sections={navSections} />
@@ -40,61 +62,119 @@ export default function FinanceOverview() {
           </div>
           <div className="flex items-center gap-3">
             <SubPageNav items={getSectionChildren("/finance")} />
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium hover:bg-white/70">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-full glass-card text-xs font-bold hover:bg-white/70">
               <Download className="size-4" /> Export Report
             </button>
           </div>
         </motion.div>
 
-        {/* 4 Financial KPI cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          {[
-            { label: "TOTAL REVENUE", value: "ETB 1,429,580", change: "+14.2%", up: true, icon: Wallet, bg: "bg-black/5" },
-            { label: "TOTAL EXPENSES", value: "ETB 512,420", change: "-3.8%", up: false, icon: CreditCard, bg: "bg-black/5" },
-            { label: "NET PROFIT", value: "ETB 917,160", change: "+24.5%", up: true, icon: Landmark, bg: "bg-green-100/70" },
-            { label: "UNPAID INVOICES", value: "ETB 64,300", change: "5 Overdue", up: null, icon: Receipt, bg: "bg-red-50" },
-          ].map((kpi, idx) => {
-            const Icon = kpi.icon
-            return (
-              <GlassCard key={kpi.label} transition={{ delay: 0.05 * idx, duration: 0.4, ease: "easeOut" }}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`size-10 rounded-xl flex items-center justify-center ${kpi.bg}`}>
-                    <Icon className="size-5 text-gray-700" />
-                  </div>
-                  {kpi.change !== null && (
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                      kpi.up === null
-                        ? "bg-red-100 text-red-600"
-                        : kpi.up
-                          ? "bg-emerald-100 text-emerald-600"
-                          : "bg-zinc-100 text-zinc-600"
-                    }`}>
-                      {kpi.change}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">{kpi.label}</p>
-                <p className="text-3xl font-black text-black mt-1">{kpi.value}</p>
-              </GlassCard>
-            )
-          })}
+        {/* Top stat row with bold JetBrains Mono figures for Overdue Amount, Due This Month, Cash Position */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <GlassCard transition={{ delay: 0.05, duration: 0.4, ease: "easeOut" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Overdue Amount</span>
+              <div className="size-8 rounded-xl bg-red-100/80 text-red-600 flex items-center justify-center">
+                <AlertCircle className="size-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-black font-mono text-red-600 mt-1">
+              ETB {overdueAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">Requires immediate AR recovery collection</p>
+          </GlassCard>
+
+          <GlassCard transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Due This Month</span>
+              <div className="size-8 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center">
+                <Clock className="size-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-black font-mono text-black mt-1">
+              ETB {dueThisMonthAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">Upcoming receivable inflows scheduled</p>
+          </GlassCard>
+
+          <GlassCard transition={{ delay: 0.15, duration: 0.4, ease: "easeOut" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Cash Position</span>
+              <div className="size-8 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center">
+                <Wallet className="size-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-black font-mono text-emerald-700 mt-1">
+              ETB {cashPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">Liquid cash & bank equivalents</p>
+          </GlassCard>
         </div>
 
-        {/* Mid grid */}
-        <div className="grid grid-cols-[1fr_380px] gap-4 mb-6">
+        {/* Slim horizontal timeline strip showing invoice due dates across upcoming months */}
+        <GlassCard transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }} className="mb-6 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="size-4 text-emerald-700" />
+              <h3 className="text-xs font-black text-black uppercase tracking-wider">Invoice Due Dates Timeline</h3>
+            </div>
+            <span className="text-[10px] font-mono text-gray-400 uppercase font-bold">Upcoming Billing Schedule</span>
+          </div>
+
+          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {sortedInvoiceTimeline.map((inv) => {
+              const isOverdue = inv.status === "Overdue"
+              const isPaid = inv.status === "Paid"
+              return (
+                <div
+                  key={inv.id}
+                  className={`shrink-0 p-3 rounded-2xl border min-w-[210px] transition-all ${
+                    isOverdue
+                      ? "bg-red-50/60 border-red-200 text-red-950"
+                      : isPaid
+                      ? "bg-emerald-50/50 border-emerald-200 text-emerald-950"
+                      : "bg-white/80 border-black/10 text-black"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono font-bold text-gray-500">{inv.invoice_number}</span>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                      isOverdue
+                        ? "bg-red-100 text-red-700"
+                        : isPaid
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-800"
+                    }`}>
+                      {inv.status}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold truncate">{inv.customer_name}</p>
+                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-black/5 text-[10px]">
+                    <span className="text-gray-400 font-semibold">Due {inv.due_date}</span>
+                    <span className="font-mono font-black text-xs">
+                      ETB {inv.balance_due.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </GlassCard>
+
+        {/* Mid grid: Cash Flow Chart + Unpaid Invoices List */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4 mb-6">
           {/* Revenue vs Expenses Chart */}
-          <GlassCard transition={{ delay: 0.15, duration: 0.4, ease: "easeOut" }}>
+          <GlassCard transition={{ delay: 0.25, duration: 0.4, ease: "easeOut" }}>
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-semibold text-base text-black">Cash Flow Trends</h3>
-                <p className="text-xs text-gray-400">Comparison of incoming revenue against outgoing costs</p>
+                <p className="text-xs text-gray-400">Comparison of incoming revenue against outgoing operational costs</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-semibold">
                 <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#242427]" /> Revenue</div>
-                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-green-700" /> Expenses</div>
+                <div className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-600" /> Expenses</div>
               </div>
             </div>
-            <div className="h-[280px]">
+            <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={cashFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
@@ -103,8 +183,8 @@ export default function FinanceOverview() {
                       <stop offset="95%" stopColor="#242427" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#15803d" stopOpacity={0.15}/>
-                      <stop offset="95%" stopColor="#15803d" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#059669" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
@@ -112,92 +192,72 @@ export default function FinanceOverview() {
                   <YAxis stroke="#888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `ETB ${val/1000}k`} />
                   <Tooltip formatter={(value) => [`ETB ${(value as number).toLocaleString()}`, ""]} labelStyle={{ fontWeight: "bold" }} />
                   <Area type="monotone" dataKey="Revenue" stroke="#242427" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-                  <Area type="monotone" dataKey="Expenses" stroke="#15803d" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
+                  <Area type="monotone" dataKey="Expenses" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </GlassCard>
 
-          {/* Expense Breakdown */}
-          <GlassCard transition={{ delay: 0.22, duration: 0.4, ease: "easeOut" }} className="flex flex-col justify-between">
+          {/* Unpaid Invoices List Card */}
+          <GlassCard transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }} className="flex flex-col justify-between">
             <div>
-              <h3 className="font-semibold text-base text-black mb-1">Expense Allocation</h3>
-              <p className="text-xs text-gray-400 mb-6">Distribution by cost centers this month</p>
-              <div className="space-y-4">
-                {[
-                  { label: "Payroll & Compensation", pct: 45, val: "ETB 230,580", color: "bg-[#242427]" },
-                  { label: "Infrastructure & Servers", pct: 22, val: "ETB 112,720", color: "bg-green-700" },
-                  { label: "Rent & Real Estate", pct: 15, val: "ETB 76,860", color: "bg-gray-400" },
-                  { label: "SaaS Tools & software", pct: 18, val: "ETB 92,260", color: "bg-zinc-300" },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-xs font-semibold text-black mb-1.5">
-                      <span>{item.label}</span>
-                      <span>{item.val} ({item.pct}%)</span>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-base text-black">Unpaid Invoices</h3>
+                  <p className="text-xs text-gray-400">Customer balances awaiting collection</p>
+                </div>
+                <Link to="/finance/invoices" className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-0.5">
+                  View Invoices <ArrowUpRight className="size-3.5" />
+                </Link>
+              </div>
+
+              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
+                {unpaidInvoices.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-6 text-center">No outstanding unpaid invoices.</p>
+                ) : (
+                  unpaidInvoices.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="p-3.5 rounded-2xl bg-black/[0.02] border border-black/5 hover:bg-black/[0.04] transition-all flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-[10px] font-bold text-gray-400">{inv.invoice_number}</span>
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                            inv.status === "Overdue" ? "bg-red-100 text-red-700" : "bg-zinc-100 text-zinc-700"
+                          }`}>
+                            {inv.status}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-black">{inv.customer_name}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">Due: {inv.due_date}</p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-black font-mono block text-black">
+                          ETB {inv.balance_due.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                        <Link
+                          to="/finance/invoices"
+                          className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md hover:bg-emerald-100"
+                        >
+                          Collect
+                        </Link>
+                      </div>
                     </div>
-                    <div className="h-2 bg-black/5 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.pct}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-black/5 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Estimated Budget Remaining</p>
-                <p className="text-lg font-black text-black mt-0.5">ETB 187,580</p>
-              </div>
-              <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full">
-                On Target
+
+            <div className="mt-4 pt-3 border-t border-black/5 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-400 uppercase">Total Receivables</span>
+              <span className="text-base font-black font-mono text-black">
+                ETB {dueThisMonthAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
           </GlassCard>
         </div>
-
-        {/* Recent Transactions list */}
-        <GlassCard transition={{ delay: 0.28, duration: 0.4, ease: "easeOut" }}>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="font-semibold text-base text-black">Recent Corporate Transactions</h3>
-              <p className="text-xs text-gray-400">A unified log of company disbursements and client receipts.</p>
-            </div>
-            <button className="text-xs text-green-700 font-bold hover:underline">View Ledger Ledger &rarr;</button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-black/5 text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">
-                  <th className="pb-3 pl-2">TXN ID</th>
-                  <th className="pb-3">Date</th>
-                  <th className="pb-3">Description/Recipient</th>
-                  <th className="pb-3">Category</th>
-                  <th className="pb-3 text-right">Amount</th>
-                  <th className="pb-3 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {recentTransactions.map((txn) => (
-                  <tr key={txn.id} className="text-sm hover:bg-black/[0.01]">
-                    <td className="py-3.5 pl-2 font-mono text-xs font-bold text-gray-500">{txn.id}</td>
-                    <td className="py-3.5 text-gray-500 text-xs">{txn.date}</td>
-                    <td className="py-3.5 font-semibold text-black">{txn.vendor}</td>
-                    <td className="py-3.5 text-xs">
-                      <span className="bg-black/5 text-gray-700 px-2.5 py-1 rounded-lg font-medium">{txn.category}</span>
-                    </td>
-                    <td className={`py-3.5 text-right font-bold ${txn.type === "income" ? "text-emerald-600" : "text-black"}`}>
-                      {txn.amount}
-                    </td>
-                    <td className="py-3.5 text-center">
-                      <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                        {txn.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </GlassCard>
       </motion.div>
     </div>
   )

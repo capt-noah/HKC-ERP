@@ -1,17 +1,23 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Search, CheckCircle2, CreditCard, Play, Eye, Filter, Users, Award, CalendarDays } from "lucide-react"
+import { Search, CheckCircle2, CreditCard, Eye, Filter, Users, Award, CalendarDays, FileCheck } from "lucide-react"
 import { FloatingNav } from "@/components/FloatingNav"
 import { GlassCard } from "@/components/GlassCard"
 import { SubPageNav } from "@/components/SubPageNav"
 import { navSections, getSectionChildren } from "@/lib/nav-config"
 import { initialEmployees, hrStats } from "@/lib/hrData"
 import type { Employee } from "@/lib/hrData"
+import { useFinanceStore } from "@/lib/financeStore"
+import { useFeedback } from "@/context/FeedbackContext"
 
 const fade = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
 const stagger = { visible: { transition: { staggerChildren: 0.05 } } }
 
 export default function Payroll() {
+  const { showToast } = useFeedback()
+  const store = useFinanceStore()
+  const payrollRuns = store.getPayrollRuns()
+
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedDept, setSelectedDept] = useState("All")
@@ -25,7 +31,39 @@ export default function Payroll() {
     return matchesSearch && matchesDept
   })
 
-  // Action: Pay all pending or specific employee
+  // Action: Post Payroll Accrual to Ledger
+  const handlePostAccrual = (runId: string) => {
+    const res = store.postPayrollAccrual(runId)
+    if (res.success) {
+      showToast(
+        "Payroll Accrued in General Ledger",
+        "success",
+        `Created Journal Entry ${res.entryId}. Salary Expense debited and individual employee payable credits posted.`
+      )
+    } else {
+      showToast("Accrual Blocked", "warning", res.error || "Failed to post payroll accrual.")
+    }
+  }
+
+  // Action: Disburse Payroll Payment to Ledger
+  const handleDisbursePayment = (runId: string) => {
+    const res = store.postPayrollPayment(runId)
+    if (res.success) {
+      showToast(
+        "Payroll Disbursed in General Ledger",
+        "success",
+        `Created Journal Entry ${res.entryId}. Accrued Payroll debited and Cash account credited.`
+      )
+      setEmployees(employees.map(e => ({
+        ...e,
+        paymentStatus: "Paid" as const,
+        paymentStatusColor: "bg-black/5 text-gray-600",
+      })))
+    } else {
+      showToast("Disbursement Blocked", "warning", res.error || "Failed to post payroll disbursement.")
+    }
+  }
+
   const handlePayEmployee = (id: string) => {
     setEmployees(employees.map(e => {
       if (e.id === id) {
@@ -37,18 +75,10 @@ export default function Payroll() {
       }
       return e
     }))
+    showToast("Disbursement Recorded", "success", "Employee payout updated.")
   }
 
-  const handleProcessAllPayroll = () => {
-    setEmployees(employees.map(e => ({
-      ...e,
-      paymentStatus: "Paid" as const,
-      paymentStatusColor: "bg-black/5 text-gray-600",
-    })))
-  }
-
-  // Calculate metrics
-  const pendingPayrollValue = employees.filter(e => e.paymentStatus !== "Paid").reduce((sum, e) => sum + e.salary, 0)
+  // Action: Pay specific employee
 
   return (
     <div className="min-h-screen page-gradient">
@@ -104,7 +134,98 @@ export default function Payroll() {
           </div>
         </motion.div>
 
-        {/* Controls Row: Search, Filter, and Process Button */}
+        {/* Section: Finance Ledger Payroll Run Postings */}
+        <motion.div variants={fade} className="mb-8">
+          <GlassCard className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xs font-black uppercase text-zinc-900 tracking-tight">Active Payroll Cycles & Ledger Postings</h3>
+                <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                  Process two-phase accounting: Accrue payroll expenses, then disburse payments to employee accounts.
+                </p>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase">
+                2-Phase Accounting Engine
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {payrollRuns.map((run) => (
+                <div key={run.id} className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-zinc-900">{run.period_label}</span>
+                      <span className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                        run.status === "Paid"
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : run.status === "Accrued"
+                          ? "bg-blue-100 text-blue-800 border border-blue-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-200"
+                      }`}>
+                        {run.status === "Draft" ? "Draft (Unposted)" : run.status === "Accrued" ? "Accrued (Payable Created)" : "Paid & Disbursed"}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 font-mono mt-1">
+                      Period: {run.period_start} to {run.period_end} • {run.employees.length} Employees
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 p-2.5 rounded-xl bg-white border border-zinc-100 font-mono text-[11px]">
+                      <div>
+                        <span className="text-[9px] text-zinc-400 block font-sans uppercase">Gross Pay</span>
+                        <span className="font-bold text-zinc-900">ETB {run.total_gross.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-zinc-400 block font-sans uppercase">Deductions</span>
+                        <span className="font-bold text-amber-800">ETB {run.total_deductions.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-zinc-400 block font-sans uppercase">Net Payout</span>
+                        <span className="font-bold text-emerald-800">ETB {run.total_net.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-zinc-200/60 pt-3 text-xs">
+                    <div className="text-[10px] font-mono text-zinc-400">
+                      {run.accrual_journal_entry_id && (
+                        <span className="block">Accrual JE: {run.accrual_journal_entry_id}</span>
+                      )}
+                      {run.payment_journal_entry_id && (
+                        <span className="block">Payment JE: {run.payment_journal_entry_id}</span>
+                      )}
+                    </div>
+
+                    <div>
+                      {run.status === "Draft" && (
+                        <button
+                          onClick={() => handlePostAccrual(run.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-sm"
+                        >
+                          <FileCheck className="size-3.5" /> Post Accrual
+                        </button>
+                      )}
+                      {run.status === "Accrued" && (
+                        <button
+                          onClick={() => handleDisbursePayment(run.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm"
+                        >
+                          <CreditCard className="size-3.5" /> Disburse Payment
+                        </button>
+                      )}
+                      {run.status === "Paid" && (
+                        <span className="text-xs text-emerald-700 font-extrabold flex items-center gap-1">
+                          <CheckCircle2 className="size-4" /> Fully Settled in GL
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* Controls Row: Search, Filter */}
         <motion.div variants={fade} className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mb-6">
           {/* Search */}
           <div className="relative flex items-center h-[38px] px-3.5 rounded-full glass-nav hover:bg-white/50 focus-within:bg-white/80 focus-within:border-black/20 focus-within:ring-1 focus-within:ring-black/5 transition-all w-full sm:w-48 shrink-0">
@@ -131,16 +252,6 @@ export default function Payroll() {
               ))}
             </select>
           </div>
-
-          {/* Action Button: Process All Payrolls */}
-          <button
-            onClick={handleProcessAllPayroll}
-            disabled={pendingPayrollValue === 0}
-            className="flex items-center gap-1.5 bg-black hover:bg-zinc-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white rounded-full h-[38px] px-4 text-xs font-bold shadow-sm transition-all active:scale-95 whitespace-nowrap"
-          >
-            <Play className="size-3.5" />
-            <span>Process All Payrolls</span>
-          </button>
         </motion.div>
 
         {/* Payroll Records List */}

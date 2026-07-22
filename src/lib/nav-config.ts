@@ -27,6 +27,9 @@ export const navSections: NavSection[] = [
       { label: "Ledger", path: "/finance/ledger" },
       { label: "Invoices", path: "/finance/invoices" },
       { label: "Expenses", path: "/finance/expenses" },
+      { label: "Banking", path: "/finance/banking" },
+      { label: "Assets & Tax", path: "/finance/assets" },
+      { label: "Reports", path: "/finance/reports" },
     ],
   },
   {

@@ -34,14 +34,14 @@ import { useFeedback } from "@/context/FeedbackContext"
 const fade = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 const stagger = { visible: { transition: { staggerChildren: 0.05 } } }
 
-// Mock Data representing different warehouses and categories
+// Mock Data representing HKC Trading 3 Warehouses
 const VALUATION_TREND_DATA = [
-  { name: "Jan 24", Medicine: 240000, Food: 120000, General: 45000 },
-  { name: "Feb 24", Medicine: 290000, Food: 130000, General: 50000 },
-  { name: "Mar 24", Medicine: 310000, Food: 125000, General: 52000 },
-  { name: "Apr 24", Medicine: 340000, Food: 145000, General: 58000 },
-  { name: "May 24", Medicine: 385000, Food: 150000, General: 61000 },
-  { name: "Jun 24", Medicine: 410000, Food: 168000, General: 65000 },
+  { name: "Jan 26", "WH1 (Agri Export)": 18500000, "WH2 (India Vet)": 8400000, "WH3 (China Vet)": 6200000 },
+  { name: "Feb 26", "WH1 (Agri Export)": 21000000, "WH2 (India Vet)": 9100000, "WH3 (China Vet)": 6800000 },
+  { name: "Mar 26", "WH1 (Agri Export)": 22400000, "WH2 (India Vet)": 9800000, "WH3 (China Vet)": 7400000 },
+  { name: "Apr 26", "WH1 (Agri Export)": 24800000, "WH2 (India Vet)": 11200000, "WH3 (China Vet)": 8100000 },
+  { name: "May 26", "WH1 (Agri Export)": 26100000, "WH2 (India Vet)": 12500000, "WH3 (China Vet)": 8900000 },
+  { name: "Jun 26", "WH1 (Agri Export)": 28500000, "WH2 (India Vet)": 13800000, "WH3 (China Vet)": 9600000 },
 ]
 
 const CATEGORY_COLORS = ["#18181b", "#16a34a", "#a1a1aa"] // Zinc-900, Green-600, Zinc-400
@@ -67,14 +67,14 @@ export default function Reports() {
   const [searchQuery, setSearchQuery] = useState("")
   const [movementFilter, setMovementFilter] = useState<"ALL" | "Received" | "Shipped" | "Adjusted" | "Transferred">("ALL")
 
-  // Mock Movement Logs
+  // HKC Trading Movement Logs
   const movements: MovementLog[] = [
-    { id: "M-9921", date: "2026-07-07", product: "Amoxicillin Trihydrate API", sku: "MED-AMX-500", type: "Received", qty: 250, unit: "kg", warehouse: "WH3 (Cold-Chain)", operator: "T. Abebe" },
-    { id: "M-9922", date: "2026-07-06", product: "Normal Saline 0.9% 500ml", sku: "MED-SAL-500", type: "Transferred", qty: 400, unit: "bags", warehouse: "WH1 (General)", operator: "A. Kebede" },
-    { id: "M-9923", date: "2026-07-05", product: "Nutritional Paste High-Protein", sku: "NUT-PST-100", type: "Shipped", qty: 1200, unit: "tubes", warehouse: "WH2 (Nutrition)", operator: "M. Tadesse" },
-    { id: "M-9924", date: "2026-07-04", product: "Sterile Nitrile Gloves Large", sku: "GEN-GLV-LRG", type: "Adjusted", qty: -50, unit: "pairs", warehouse: "WH1 (General)", operator: "H. Hailu" },
-    { id: "M-9925", date: "2026-07-03", product: "Reagent Solution Vault A", sku: "MED-RGT-001", type: "Received", qty: 100, unit: "liters", warehouse: "WH3 (Cold-Chain)", operator: "T. Abebe" },
-    { id: "M-9926", date: "2026-07-02", product: "Surgical Masks Type IIR", sku: "GEN-MSK-002", type: "Shipped", qty: 15000, unit: "units", warehouse: "WH1 (General)", operator: "A. Kebede" },
+    { id: "M-9921", date: "2026-07-07", product: "Grade 1 Yirgacheffe Arabica Coffee Beans", sku: "AGR-COF-YRG1", type: "Received", qty: 200, unit: "bags", warehouse: "WH1 (Agri Export)", operator: "A. Kasahun" },
+    { id: "M-9922", date: "2026-07-06", product: "Oxytetracycline 20% LA Injectable", sku: "VET-OXY-20LA", type: "Transferred", qty: 400, unit: "vials", warehouse: "WH2 (India Vet)", operator: "S. Kebede" },
+    { id: "M-9923", date: "2026-07-05", product: "Amoxicillin Trihydrate 50% Soluble Powder", sku: "VET-AMX-50SP", type: "Shipped", qty: 100, unit: "tins", warehouse: "WH3 (China Vet)", operator: "T. Haile" },
+    { id: "M-9924", date: "2026-07-04", product: "Humera White Sesame Seeds", sku: "AGR-SES-HUM1", type: "Shipped", qty: 5, unit: "MT", warehouse: "WH1 (Agri Export)", operator: "A. Kasahun" },
+    { id: "M-9925", date: "2026-07-03", product: "Newcastle + IB Poultry Vaccine", sku: "VET-VAC-NCIB", type: "Received", qty: 160, unit: "vials", warehouse: "WH3 (China Vet)", operator: "T. Haile" },
+    { id: "M-9926", date: "2026-07-02", product: "Ivermectin 1% Injectable Solution", sku: "VET-IVM-01IN", type: "Received", qty: 800, unit: "vials", warehouse: "WH2 (India Vet)", operator: "S. Kebede" },
   ]
 
   // Filter movements
@@ -98,32 +98,31 @@ export default function Reports() {
     )
   }
 
-  // Derived Category Data for Donut Chart
-  // In real app, this scales with selected warehouse
+  // Derived Category Data for Donut Chart (HKC Trading)
   const getCategoryData = () => {
     if (selectedWarehouse === "WH1") {
       return [
-        { name: "Medicine", value: 45000 },
-        { name: "Food & Nutrition", value: 15000 },
-        { name: "General Goods", value: 180000 },
+        { name: "Coffee & Oilseeds (WH1 Export)", value: 28500000 },
+        { name: "Veterinary Imports (India WH2)", value: 0 },
+        { name: "Veterinary Imports (China WH3)", value: 0 },
       ]
     } else if (selectedWarehouse === "WH2") {
       return [
-        { name: "Medicine", value: 12000 },
-        { name: "Food & Nutrition", value: 295000 },
-        { name: "General Goods", value: 5000 },
+        { name: "Coffee & Oilseeds (WH1 Export)", value: 0 },
+        { name: "Veterinary Imports (India WH2)", value: 13800000 },
+        { name: "Veterinary Imports (China WH3)", value: 0 },
       ]
     } else if (selectedWarehouse === "WH3") {
       return [
-        { name: "Medicine", value: 512000 },
-        { name: "Food & Nutrition", value: 0 },
-        { name: "General Goods", value: 0 },
+        { name: "Coffee & Oilseeds (WH1 Export)", value: 0 },
+        { name: "Veterinary Imports (India WH2)", value: 0 },
+        { name: "Veterinary Imports (China WH3)", value: 9600000 },
       ]
     }
     return [
-      { name: "Medicine", value: 410000 },
-      { name: "Food & Nutrition", value: 168000 },
-      { name: "General Goods", value: 65000 },
+      { name: "Coffee & Oilseeds (WH1 Export)", value: 28500000 },
+      { name: "Veterinary Imports (India WH2)", value: 13800000 },
+      { name: "Veterinary Imports (China WH3)", value: 9600000 },
     ]
   }
 
@@ -133,10 +132,10 @@ export default function Reports() {
   // Derived trend data based on warehouse
   const getValuationTrend = () => {
     return VALUATION_TREND_DATA.map(d => {
-      let val = d.Medicine + d.Food + d.General
-      if (selectedWarehouse === "WH1") val = d.General * 2.2 + d.Medicine * 0.1
-      if (selectedWarehouse === "WH2") val = d.Food * 1.5 + d.General * 0.2
-      if (selectedWarehouse === "WH3") val = d.Medicine * 1.2
+      let val = d["WH1 (Agri Export)"] + d["WH2 (India Vet)"] + d["WH3 (China Vet)"]
+      if (selectedWarehouse === "WH1") val = d["WH1 (Agri Export)"]
+      if (selectedWarehouse === "WH2") val = d["WH2 (India Vet)"]
+      if (selectedWarehouse === "WH3") val = d["WH3 (China Vet)"]
       return {
         name: d.name,
         Valuation: val

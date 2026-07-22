@@ -64,10 +64,12 @@ const WAREHOUSES = [
 ]
 
 const PRODUCTS_POOL = [
-  { name: "Lidocaine HCl Monohydrate", sku: "PRD-LID-01", defaultUOM: "Carton" },
-  { name: "Adenosine Phosphate Buffer", sku: "PRD-ADP-04", defaultUOM: "L" },
-  { name: "Sodium Chloride USP Grade", sku: "PRD-NAC-12", defaultUOM: "Carton" },
-  { name: "Epinephrine Ephedrine Sol.", sku: "PRD-EPI-09", defaultUOM: "Carton" }
+  { name: "Grade 1 Yirgacheffe Arabica Coffee Beans", sku: "AGR-COF-YRG1", defaultUOM: "bags (60kg)" },
+  { name: "Humera White Sesame Seeds", sku: "AGR-SES-HUM1", defaultUOM: "Metric Tons" },
+  { name: "Oxytetracycline 20% LA Injectable (100ml)", sku: "VET-OXY-20LA", defaultUOM: "vials" },
+  { name: "Amoxicillin Trihydrate 50% Soluble Powder", sku: "VET-AMX-50SP", defaultUOM: "tins (1kg)" },
+  { name: "Newcastle & IB Poultry Vaccine (1000d)", sku: "VET-VAC-NCIB", defaultUOM: "vials" },
+  { name: "Ivermectin 1% Injectable Solution", sku: "VET-IVM-01IN", defaultUOM: "vials" }
 ]
 
 const MOCK_USERS: MockUser[] = [

@@ -151,38 +151,62 @@ This section details the functional purpose, database/state contents, and specif
 ### 💵 Finance Section
 
 #### 1. Finance Overview (`/finance`)
-- **Functional Purpose:** Visualizes general company revenue, cost centers, cash flow trends, and net income statistics.
+- **Functional Purpose:** Visualizes general company revenue, cost centers, cash flow trends, profitability metrics, and key financial ratios in real-time.
 - **Contents (Data & States):**
-  - **Financial KPIs:** Monthly Revenue, Operating Expenses, accounts receivable, and accounts payable metrics.
+  - **Financial KPIs:** Monthly Revenue, Operating Expenses, Net Income, Accounts Receivable (AR), Accounts Payable (AP), Cash Balance.
+  - **Financial Ratios:** Current Ratio, Quick Ratio, Debt-to-Equity Ratio, Gross Margin %, Net Margin %.
+  - **Income vs Expense Trends:** Historical monthly comparison of top-line revenue versus operating expenses.
+  - **Cost Center Spend Allocation:** Breakdown of expenditure across cost centers (Operations, Sales, R&D, Administration).
 - **How it is Showed (Visualizations):**
-  - **Area & Bar Graphs:** Plotted using **Recharts API** utilizing clean primary blacks, ambers, and emeralds matching the overall design style.
+  - **Area & Bar Graphs:** Interactive charts built using **Recharts API** with responsive tooltips, emerald revenue curves, and dark zinc bars.
+  - **KPI Metric Cards:** High-contrast glass cards featuring sparkline trend icons and delta change badges (+/- %).
+  - **Financial Health Radar:** Visual gauge indicators for liquidity ratios and operating margin efficiency.
 
-#### 2. General Ledger (`/finance/ledger`)
-- **Functional Purpose:** The primary double-entry bookkeeping engine of the enterprise, allowing administrators to audit the Chart of Accounts and partner aging matrices.
+#### 2. General Ledger & ERPNext Financial Engine (`/finance/ledger`)
+- **Functional Purpose:** An enterprise-grade, ERPNext-aligned double-entry accounting engine for multi-currency general ledger management, financial reporting, budgeting, asset depreciation, tax compliance, and period closing.
 - **Contents (Data & States):**
-  - **Journal Entries:** Transaction ledger containing unique codes (JE-001), dates, accounting descriptions, source PO/invoice references, debit values, credit values, and cumulative balances.
-  - **Chart of Accounts:** Classified under Assets, Liabilities, Equity, Revenue, and Expense classes.
-  - **Accounts Aging:** Partner tables specifying receivables (AR) and payables (AP) categorized by overdue age classes (Current, 31-60, 61-90, 90+ days).
+  - **Chart of Accounts (COA):** Standard 5-root hierarchical tree (1000 Assets, 2000 Liabilities, 3000 Equity, 4000 Revenue, 5000/6000 Expenses) with parent-child account nodes, account types (Bank, Cash, Receivable, Payable, Fixed Asset, Cost of Goods Sold, Expense, Income), and currency specifications.
+  - **Journal Entries (JE):** Real-time double-entry posting ledger with unique IDs (`JE-YYYY-XXXX`), document posting dates, accounting remarks, cost center tags, debit/credit entries, source reference tracking, and auto-balancing validation (`Total Debit == Total Credit`).
+  - **Accounts Receivable & Payable Aging:** Detailed customer and supplier sub-ledgers with aging buckets (Current, 1-30 days, 31-60 days, 61-90 days, 90+ days) and payment history logs.
+  - **Multi-Currency & Exchange Rate Revaluation:** Base currency (USD) vs. foreign currency (EUR, GBP, JPY) transaction logging with automated rate revaluation posting gains/losses to `4200 - Foreign Exchange Gain/Loss`.
+  - **Payment Reconciliation & Matching:** Automated and manual invoice-to-payment matching, handling partial payments, advance payments, and posting unallocated balances.
+  - **Budgeting & Cost Center Analytics:** Cost center allocation (Sales, Operations, R&D, Administration) with budget limit checking, threshold warning alerts (>80%), and variance reporting.
+  - **Fixed Assets & Depreciation:** Fixed Asset registry tracking purchase cost, salvage value, useful life (years), straight-line depreciation schedules, and automated journal posting (`6500 Depreciation Expense` vs `1510 Accumulated Depreciation`).
+  - **Accounting Periods & Fiscal Year Closing:** Period locking mechanisms (Prevent entries in closed periods), fiscal year end closing workflows, and automated transfer of net profit/loss to `3100 Retained Earnings`.
+  - **Bank Reconciliation:** Matching bank statement lines against internal GL bank/cash entries, uncleared deposit tracking, and bank reconciliation statements.
+  - **Tax Templates & Tax Engine:** Configurable tax rules (Standard GST 18%, Exempt, Reverse Charge), sales/purchase tax ledgers (`2200 Output Tax` / `1300 Input Tax Credit`), and tax liability reporting.
+  - **Financial Statements:** Live generation of **Balance Sheet**, **Income Statement (Profit & Loss)**, **Trial Balance**, and **Cash Flow Statement** derived directly from real GL transactions.
 - **How it is Showed (Visualizations):**
-  - **Ledger Audit Tables:** Structured lists featuring monospace JetBrains fonts for perfect alignment of debits, credits, and balance totals.
-  - **Account Sliders:** Category groups collapse and expand smoothly.
-  - **Self-Balancing Entry Form:** Features an interactive modal to post manual JEs with automatic formula checks, showing a red alert if debits and credits do not balance.
+  - **Hierarchical COA Tree View:** Collapsible/expandable account categories with color-coded root node badges, real-time running balances, and account creation modals.
+  - **Ledger Audit & Journal Entry Table:** Monospace `JetBrains Mono` formatting for perfect tabular alignment of debit, credit, and running balance values.
+  - **Interactive Multi-Tab Workspace:** Top tab bar allowing seamless navigation between *General Ledger*, *Chart of Accounts*, *AR/AP Aging*, *Multi-Currency*, *Payment Reconciliation*, *Budgeting & Cost Centers*, *Fixed Assets*, *Accounting Periods*, *Bank Reconciliation*, *Tax Ledger*, and *Financial Statements*.
+  - **Self-Balancing Entry Modal:** Modal dialog with live debit/credit tallying, red imbalance alerts, cost center selector dropdowns, and draft vs. posted controls.
+  - **Financial Statement Print/Export Layout:** Clean formatted report views with expandable account subtotals and one-click PDF/CSV export capabilities.
 
-#### 3. Invoices (`/finance/invoices`)
-- **Functional Purpose:** Tracks outgoing client billing, dispatch schedules, and accounts receivable collections.
+#### 3. Invoices Engine (`/finance/invoices`)
+- **Functional Purpose:** Full-lifecycle invoicing management for customer Accounts Receivable (AR) Invoices, integrated with ERPNext-style tax templates, payment terms, discount structures, draft status handling, and automatic GL journal entry posting.
 - **Contents (Data & States):**
-  - Client invoices with identifier codes, customer name, bill dates, totals, and payment state (Paid, Overdue, Pending).
+  - **AR Executive Summary KPIs:** Total AR Exposure (uncollected receivables balance), Total Collections Received (cash/bank), Overdue AR Amount (past due date), and Active Invoices Count.
+  - **Invoice Directory:** Customer invoices with identifier codes (`INV-2026-XXX`), party details, issue dates, due dates, payment terms (`Net 30`, `Net 15`, `Immediate`, `50% Advance`), tax templates (`15% Standard VAT`, `0% Zero-Rated`, `3% Withholding`), discount amounts, and status (`Draft`, `Sent`, `Paid`, `Overdue`, `Cancelled`).
+  - **Line Item Catalog:** Itemized product entries, quantities, unit prices, line item totals, and automatically calculated tax/discount breakdowns.
 - **How it is Showed (Visualizations):**
-  - Listed inside structured glass rows styled with custom-colored badges representing transaction statuses.
+  - **Invoice Document & Slide-In Audit Panel:** Formatted letterhead layout displaying customer details, payment terms, itemized line items, subtotal, discount, tax, balance due, and a dedicated **GL Posting Impact Audit** breakdown (Debit ACC-1200 AR, Credit ACC-4000 Sales Revenue, Credit ACC-2210 Tax Liability).
+  - **Void / Cancel Invoice Action:** Allows cancelling active invoices, automatically posting an opposing GL reversal journal entry (`Debit ACC-4000`, `Debit ACC-2210`, `Credit ACC-1200`) and updating invoice status to `Cancelled`.
+  - **Interactive Creation Drawer:** Full-height slide-over drawer with line-item management, tax template selector, payment terms, discount input, real-time calculation readout, and dual submission modes (**Save Draft** vs. **Issue & Post Invoice**).
+  - **Status Badge Filters & Quick Payments:** Color-coded status pills with single-click payment recording modals that immediately update uncollected balances and post bank receipt GL entries.
 
-#### 4. Expenses Ledger (`/finance/expenses`)
-- **Functional Purpose:** Handles employee expense reports, travel lodging receipts, and software SaaS infrastructure costs.
+#### 4. Expenses & Recurring Schedules (`/finance/expenses`)
+- **Functional Purpose:** Handles employee expense claims with cost center allocation, operational vendor expenses, recurring expense schedules with status toggling, and corporate vehicle fleet maintenance with automated GL posting.
 - **Contents (Data & States):**
-  - Merchant name, expense categories, reporting employee, total amount, and authorization status (Approved, Pending, Rejected).
+  - **Expenses Executive Summary KPIs:** Approved Expenses YTD, Pending Claims Audit Count & Value, Monthly Recurring Commitment, and Total Fleet Maintenance Expense.
+  - **Expense Claim Registry:** Expense ID (`EXP-2026-XXX`), merchant/vendor, claimant employee, cost center (`CC-100 Corporate HQ`, `CC-200 Logistics & Warehouse`, `CC-300 Sales & Field Ops`), expense GL account head (`ACC-5100 Rent`, `ACC-5200 SaaS/Utilities`, `ACC-5300 R&D`, `ACC-5400 Vehicle Fleet`, `ACC-5010 Payroll`), tax reclaim portion (15%), voucher/receipt reference, amount, and approval status (`PENDING`, `APPROVED`, `REJECTED`).
+  - **Recurring Expense Schedules:** Automated recurring payment rules (Monthly, Quarterly, Annual) with cost center allocation, linked contract references, next due dates, auto-generation simulation, and Pause/Activate status toggling.
+  - **Fleet Vehicle Registry & Maintenance Logs:** Corporate vehicles (trucks, vans) assigned to warehouses, driver details, repair logs, and automated GL entry posting to `ACC-5400` Vehicle Fleet Repairs upon logging maintenance.
 - **How it is Showed (Visualizations):**
-  - **Dynamic KPI Summaries:** Live math cards depicting approved vs. pending expenditures.
-  - **Authorization Quick Triggers:** Expense rows feature rapid approve/reject check buttons that trigger prompt notification feedback.
-  - **File Expense Form:** Pop-up modal containing categorized inputs and file upload drag-and-drop slots.
+  - **Dynamic Expense KPI Cards:** Live summary metrics highlighting approved YTD expenditures, pending treasury audit queue, monthly recurring commitments, and total fleet service history.
+  - **Approval Pipeline & GL Auto-Posting:** One-click approval/rejection action buttons. Approving a claim automatically posts a double-entry GL journal debiting the designated Expense GL Account & Tax Reclaim Account and crediting Cash/Bank (`ACC-1000`).
+  - **Recurring Schedule Builder & Status Control:** Modal interface to define frequency, amount, cost center, next due date, and vendor references, alongside quick Pause/Activate toggle buttons on table rows.
+  - **Fleet Maintenance Log Modal:** Allows logging repairs per vehicle registration number with immediate GL entry creation and service history logging.
 
 ---
 

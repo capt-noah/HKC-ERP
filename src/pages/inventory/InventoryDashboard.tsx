@@ -61,23 +61,23 @@ export default function InventoryDashboard() {
   
   // Interactive Pending Approvals State
   const [batches, setBatches] = useState<BatchApproval[]>([
-    { id: "B-QA-101", product: "Amoxicillin Trihydrate API", batchNumber: "B-AMX-2026-08", quantity: 250, unit: "kg", expiry: "2027-12-14", warehouse: "Cold-Chain A", status: "Pending QA" },
-    { id: "B-QA-102", product: "Lidocaine Hydrochloride", batchNumber: "B-LID-12-09", quantity: 120, unit: "kg", expiry: "2028-04-20", warehouse: "Cold-Chain A", status: "Pending QA" },
-    { id: "B-QA-103", product: "Ascorbic Acid Standard", batchNumber: "B-ASC-7711", quantity: 500, unit: "kg", expiry: "2026-09-30", warehouse: "General Goods WH", status: "Pending QA" },
+    { id: "B-QA-101", product: "Newcastle & IB Poultry Vaccine (1000d)", batchNumber: "B-VAC-CHN-05", quantity: 160, unit: "vials", expiry: "2026-11-30", warehouse: "WH3 (China Vet)", status: "Pending QA" },
+    { id: "B-QA-102", product: "Oxytetracycline 20% LA Injectable (100ml)", batchNumber: "B-OXY-IND-99", quantity: 1200, unit: "vials", expiry: "2028-05-18", warehouse: "WH2 (India Vet)", status: "Pending QA" },
+    { id: "B-QA-103", product: "Grade 1 Yirgacheffe Arabica Coffee Beans", batchNumber: "B-YRG-2026-04", quantity: 650, unit: "bags (60kg)", expiry: "2027-12-31", warehouse: "WH1 (Agri Export)", status: "Pending QA" },
   ])
 
   // Interactive Today's Activity (for Reception & Overview)
   const [activities, setActivities] = useState<ActivityLog[]>([
-    { id: "ACT-01", type: "Received", product: "Normal Saline 0.9% 500ml", quantity: 1200, unit: "bags", time: "09:14 AM", warehouse: "General Goods WH" },
-    { id: "ACT-02", type: "Dispatched", product: "Surgical Masks Type IIR", quantity: 5000, unit: "units", time: "10:45 AM", warehouse: "General Goods WH" },
-    { id: "ACT-03", type: "Received", product: "Dextrose 5% IV Infusion", quantity: 800, unit: "bags", time: "11:20 AM", warehouse: "General Goods WH" },
+    { id: "ACT-01", type: "Received", product: "Humera White Sesame Seeds", quantity: 50, unit: "Metric Tons", time: "09:14 AM", warehouse: "WH1 (Agri Export)" },
+    { id: "ACT-02", type: "Dispatched", product: "Amoxicillin Trihydrate 50% Soluble Powder", quantity: 100, unit: "tins (1kg)", time: "10:45 AM", warehouse: "WH3 (China Vet)" },
+    { id: "ACT-03", type: "Received", product: "Ivermectin 1% Injectable Solution", quantity: 800, unit: "vials", time: "11:20 AM", warehouse: "WH2 (India Vet)" },
   ])
 
   // Expected Deliveries
   const [expectedDeliveries, setExpectedDeliveries] = useState<ExpectedDelivery[]>([
-    { id: "DEL-441", product: "Sterile Nitrile Gloves", expectedQty: 10000, unit: "pairs", supplier: "MedicaCorp Ltd", eta: "2:00 PM Today" },
-    { id: "DEL-442", product: "Syringes with Needles 5ml", expectedQty: 15000, unit: "units", supplier: "Global Pharma Trade", eta: "4:30 PM Today" },
-    { id: "DEL-443", product: "Adhesive Bandages", expectedQty: 2500, unit: "packs", supplier: "FirstAid Supply Co.", eta: "Tomorrow Morning" },
+    { id: "DEL-441", product: "Yirgacheffe Arabica Coffee (Oromia Farmers Union)", expectedQty: 200, unit: "bags (60kg)", supplier: "Oromia Farmers Cooperative Union", eta: "2:00 PM Today" },
+    { id: "DEL-442", product: "Oxytetracycline 20% LA & Albendazole Boluses", expectedQty: 3400, unit: "vials/boxes", supplier: "Indian Vet Bio Pharma Ltd", eta: "4:30 PM Today" },
+    { id: "DEL-443", product: "Enrofloxacin 10% Oral Solution", expectedQty: 1000, unit: "bottles (1L)", supplier: "Shandong Animal Health Corp", eta: "Tomorrow Morning" },
   ])
 
   // Modals / Inputs
