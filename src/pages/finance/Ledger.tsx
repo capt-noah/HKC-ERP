@@ -9,17 +9,16 @@ import {
   X,
   RotateCcw,
   CheckCircle2,
-  ArrowRightLeft,
   TrendingUp,
-  Landmark,
-  PieChart,
   Receipt,
   ShieldCheck,
-  Scale,
-  Calendar,
   Download,
   FolderTree,
-  Building
+  Folder,
+  FolderOpen,
+  ArrowUp,
+  ArrowDown,
+  Filter
 } from "lucide-react"
 import { FloatingNav } from "@/components/FloatingNav"
 import { GlassCard } from "@/components/GlassCard"
@@ -135,7 +134,7 @@ export default function Ledger() {
   const store = useFinanceStore()
 
   const [activeTab, setActiveTab] = useState<
-    "Entries" | "Chart" | "Periods" | "Revaluation"
+    "Entries" | "Chart" | "TrialBalance" | "Periods" | "Revaluation"
   >("Entries")
 
   // Store data
@@ -147,20 +146,80 @@ export default function Ledger() {
   const invoices = store.getInvoices()
 
   const [searchEntries, setSearchEntries] = useState("")
+
+  // Journal Entries Column Resizing & Sorting State
+  const defaultJeColWidths: Record<string, number> = {
+    id: 110,
+    entry_date: 115,
+    description: 180,
+    account_lines: 200,
+    party: 150,
+    debit_amount: 125,
+    credit_amount: 125,
+    source_type: 130,
+    actions: 100,
+  }
+
+  const [jeColWidths, setJeColWidths] = useState<Record<string, number>>(defaultJeColWidths)
+  const [jeSortKey, setJeSortKey] = useState<string | null>(null)
+  const [jeSortDir, setJeSortDir] = useState<"asc" | "desc">("asc")
+  const [openJeSortMenuCol, setOpenJeSortMenuCol] = useState<string | null>(null)
+
+  const handleJeResizeStart = (e: React.MouseEvent, colKey: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startWidth = jeColWidths[colKey] || 120
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX
+      const newWidth = Math.max(65, startWidth + deltaX)
+      setJeColWidths((prev) => ({ ...prev, [colKey]: newWidth }))
+    }
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove)
+      document.removeEventListener("mouseup", onMouseUp)
+    }
+
+    document.addEventListener("mousemove", onMouseMove)
+    document.addEventListener("mouseup", onMouseUp)
+  }
+
+  const jeColumns: { key: string; label: string; align?: "left" | "right" | "center" }[] = [
+    { key: "id", label: "JE ID", align: "left" },
+    { key: "entry_date", label: "Posting Date", align: "left" },
+    { key: "description", label: "Description", align: "left" },
+    { key: "account_lines", label: "Account Lines", align: "left" },
+    { key: "party", label: "Party", align: "left" },
+    { key: "debit_amount", label: "Debit (ETB)", align: "right" },
+    { key: "credit_amount", label: "Credit (ETB)", align: "right" },
+    { key: "source_type", label: "Voucher Type", align: "center" },
+    { key: "actions", label: "Actions", align: "right" },
+  ]
   
   // COA state
-  const [collapsedCategories, setCollapsedCategories] = useState<{ [key: string]: boolean }>({
-    Asset: false,
-    Liability: false,
-    Equity: false,
-    Revenue: false,
-    Expense: false,
+  const [coaSearch, setCoaSearch] = useState("")
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
+    Asset: true,
+    Liability: true,
+    Equity: true,
+    Revenue: true,
+    Expense: true,
+    "1100": true,
+    "1400": true,
+    "2050": true,
+    "3050": true,
+    "4050": true,
+    "5050": true,
+    "5150": true,
   })
   const [showAddAccountModal, setShowAddAccountModal] = useState(false)
   const [newAccCode, setNewAccCode] = useState("")
   const [newAccName, setNewAccName] = useState("")
   const [newAccType, setNewAccType] = useState<"Asset" | "Liability" | "Equity" | "Revenue" | "Expense">("Asset")
   const [newAccParent, setNewAccParent] = useState<string>("")
+  const [newAccIsGroup, setNewAccIsGroup] = useState(false)
 
   // Aging state
   const [agingType, setAgingType] = useState<"receivables" | "payables">("receivables")
@@ -301,11 +360,14 @@ export default function Ledger() {
       account_type: newAccType,
       parent_account_id: newAccParent || null,
       is_active: true,
+      is_group: newAccIsGroup,
     })
     if (res.success) {
       setShowAddAccountModal(false)
       setNewAccCode("")
       setNewAccName("")
+      setNewAccParent("")
+      setNewAccIsGroup(false)
       showToast("Account Created", "success", `Account ${newAccCode} - ${newAccName} added to Chart of Accounts.`)
     } else {
       showToast("Account Creation Failed", "warning", res.error || "Could not create account.")
@@ -450,6 +512,59 @@ export default function Ledger() {
     )
   })
 
+  // Sort entries
+  const sortedEntries = [...filteredEntries].sort((a, b) => {
+    if (jeSortKey) {
+      const entryLinesA = lines.filter((l) => l.journal_entry_id === a.id)
+      const entryLinesB = lines.filter((l) => l.journal_entry_id === b.id)
+      const totalDebitA = entryLinesA.reduce((s, l) => s + l.debit_amount, 0)
+      const totalDebitB = entryLinesB.reduce((s, l) => s + l.debit_amount, 0)
+      const totalCreditA = entryLinesA.reduce((s, l) => s + l.credit_amount, 0)
+      const totalCreditB = entryLinesB.reduce((s, l) => s + l.credit_amount, 0)
+
+      let valA: any = ""
+      let valB: any = ""
+
+      if (jeSortKey === "id") {
+        valA = a.id
+        valB = b.id
+      } else if (jeSortKey === "entry_date") {
+        valA = a.entry_date
+        valB = b.entry_date
+      } else if (jeSortKey === "description") {
+        valA = a.description || ""
+        valB = b.description || ""
+      } else if (jeSortKey === "account_lines") {
+        valA = entryLinesA.map((l) => l.account_id).join(",")
+        valB = entryLinesB.map((l) => l.account_id).join(",")
+      } else if (jeSortKey === "party") {
+        valA = entryLinesA.map((l) => l.party_name || "").filter(Boolean).join(",")
+        valB = entryLinesB.map((l) => l.party_name || "").filter(Boolean).join(",")
+      } else if (jeSortKey === "debit_amount") {
+        valA = totalDebitA
+        valB = totalDebitB
+      } else if (jeSortKey === "credit_amount") {
+        valA = totalCreditA
+        valB = totalCreditB
+      } else if (jeSortKey === "source_type") {
+        valA = a.source_type || ""
+        valB = b.source_type || ""
+      }
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        if (valA !== valB) {
+          return jeSortDir === "asc" ? valA - valB : valB - valA
+        }
+      } else if (typeof valA === "string" && typeof valB === "string") {
+        const comp = valA.localeCompare(valB)
+        if (comp !== 0) {
+          return jeSortDir === "asc" ? comp : -comp
+        }
+      }
+    }
+    return 0
+  })
+
   // Group accounts
   const accountsByType = {
     Asset: accounts.filter((a) => a.account_type === "Asset"),
@@ -487,6 +602,184 @@ export default function Ledger() {
 
   const netIncome = totalRevenue - totalExpense
 
+  // COA Tree Helpers
+  const getAccountNetBalance = (acc: any) => {
+    const accLines = lines.filter((l) => l.account_id === acc.id || l.account_id === acc.code)
+    const debitSum = accLines.reduce((s, l) => s + l.debit_amount, 0)
+    const creditSum = accLines.reduce((s, l) => s + l.credit_amount, 0)
+    if (acc.account_type === "Asset" || acc.account_type === "Expense") {
+      return debitSum - creditSum
+    }
+    return creditSum - debitSum
+  }
+
+  const isGroupAccount = (acc: any) => {
+    if (acc.is_group === true) return true
+    return accounts.some((a) => a.parent_account_id === acc.code || a.parent_account_id === acc.id)
+  }
+
+  const getGroupNetBalance = (acc: any): number => {
+    let sum = getAccountNetBalance(acc)
+    const children = accounts.filter((a) => a.parent_account_id === acc.code || a.parent_account_id === acc.id)
+    for (const child of children) {
+      if (isGroupAccount(child)) {
+        sum += getGroupNetBalance(child)
+      } else {
+        sum += getAccountNetBalance(child)
+      }
+    }
+    return sum
+  }
+
+  const handleExpandAllCoa = () => {
+    const newExpanded: Record<string, boolean> = {
+      Asset: true,
+      Liability: true,
+      Equity: true,
+      Revenue: true,
+      Expense: true,
+    }
+    accounts.forEach((acc) => {
+      if (isGroupAccount(acc)) {
+        newExpanded[acc.code] = true
+        newExpanded[acc.id] = true
+      }
+    })
+    setExpandedNodes(newExpanded)
+  }
+
+  const handleCollapseAllCoa = () => {
+    setExpandedNodes({
+      Asset: false,
+      Liability: false,
+      Equity: false,
+      Revenue: false,
+      Expense: false,
+    })
+  }
+
+  const renderAccountTreeNode = (acc: any, level = 1) => {
+    const isGroup = isGroupAccount(acc)
+    const children = accounts.filter((a) => a.parent_account_id === acc.code || a.parent_account_id === acc.id)
+    const nodeKey = acc.code || acc.id
+    const isExpanded = !!expandedNodes[nodeKey] || coaSearch.trim().length > 0
+    const netBalance = isGroup ? getGroupNetBalance(acc) : getAccountNetBalance(acc)
+
+    // Filter check
+    const searchTerm = coaSearch.toLowerCase().trim()
+    if (searchTerm) {
+      const selfMatches = acc.code.toLowerCase().includes(searchTerm) || acc.name.toLowerCase().includes(searchTerm)
+      const childMatches = children.some((c) => c.code.toLowerCase().includes(searchTerm) || c.name.toLowerCase().includes(searchTerm))
+      if (!selfMatches && !childMatches) return null
+    }
+
+    const toggleExpand = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      setExpandedNodes((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }))
+    }
+
+    const handleAddChild = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      setNewAccType(acc.account_type)
+      setNewAccParent(acc.code)
+      setNewAccIsGroup(false)
+      setShowAddAccountModal(true)
+    }
+
+    return (
+      <div key={acc.id} className="flex flex-col gap-1.5 w-full">
+        <div
+          onClick={isGroup ? toggleExpand : undefined}
+          className={`flex items-center justify-between p-2.5 rounded-2xl transition-all border text-xs select-none ${
+            isGroup
+              ? "bg-zinc-100/90 hover:bg-zinc-200/80 border-zinc-200/90 font-bold text-zinc-900 cursor-pointer shadow-sm"
+              : "bg-white/90 hover:bg-emerald-50/50 border-zinc-200/70 font-semibold text-zinc-800"
+          }`}
+          style={{ paddingLeft: `${Math.max(12, level * 20)}px` }}
+        >
+          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+            {/* Chevron for Groups */}
+            {isGroup ? (
+              <button
+                onClick={toggleExpand}
+                className="p-1 rounded-md hover:bg-zinc-300/70 text-zinc-700 shrink-0 transition-colors"
+              >
+                {isExpanded ? <ChevronDown className="size-3.5 text-zinc-900" /> : <ChevronRight className="size-3.5 text-zinc-500" />}
+              </button>
+            ) : (
+              <span className="size-3.5 shrink-0 flex items-center justify-center">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+              </span>
+            )}
+
+            {/* Folder / File Icon */}
+            {isGroup ? (
+              isExpanded ? <FolderOpen className="size-4 text-amber-600 shrink-0" /> : <Folder className="size-4 text-amber-600 shrink-0" />
+            ) : (
+              <FileText className="size-3.5 text-emerald-600 shrink-0" />
+            )}
+
+            {/* Code & Name */}
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-mono font-black text-zinc-900 bg-zinc-200/90 px-1.5 py-0.5 rounded text-[11px] shrink-0">
+                {acc.code}
+              </span>
+              <span className="truncate font-bold text-zinc-900">{acc.name}</span>
+
+              {/* Badges */}
+              {isGroup ? (
+                <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-full shrink-0">
+                  Group
+                </span>
+              ) : (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/90 border border-emerald-200/80 px-1.5 py-0.5 rounded-full shrink-0">
+                  Ledger
+                </span>
+              )}
+
+              {!acc.is_active && (
+                <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full shrink-0">
+                  Inactive
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right Balance & Actions */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="text-right">
+              <div className={`font-mono font-black text-xs ${isGroup ? "text-zinc-950" : "text-zinc-800"}`}>
+                ETB {netBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {isGroup && (
+                <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-tight">
+                  {children.length} sub-account{children.length === 1 ? "" : "s"}
+                </div>
+              )}
+            </div>
+
+            {isGroup && (
+              <button
+                onClick={handleAddChild}
+                className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-1 rounded-full transition-all"
+                title={`Add sub-account under ${acc.code} - ${acc.name}`}
+              >
+                <Plus className="size-3" /> Child
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Children List */}
+        {isGroup && isExpanded && children.length > 0 && (
+          <div className="flex flex-col gap-1.5 pt-0.5 relative before:absolute before:left-5 before:top-1 before:bottom-3 before:w-0.5 before:bg-zinc-200/60">
+            {children.map((childAcc) => renderAccountTreeNode(childAcc, level + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen page-gradient">
       <FloatingNav brand="HKC Trading ERP" sections={navSections} />
@@ -500,9 +793,9 @@ export default function Ledger() {
         {/* Title Header Block */}
         <motion.div variants={fade} className="flex flex-col md:flex-row md:items-start md:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-black text-black tracking-tight">General Ledger & Accounting Engine</h1>
+            <h1 className="text-3xl font-black text-black tracking-tight">Journal Entries & Ledger Engine</h1>
             <p className="text-xs font-semibold text-zinc-500 max-w-2xl leading-relaxed mt-1">
-              ERPNext-aligned double-entry bookkeeping system: Multi-level Chart of Accounts, Bank Reconciliation, Asset Depreciation, Tax Engines, Budgeting Controls, and Financial Statements.
+              ERPNext-aligned double-entry bookkeeping system: Journal Entry Vouchers, Multi-level Chart of Accounts, Period Locking, and Forex Revaluation.
             </p>
           </div>
           <div className="flex items-center gap-3 self-end md:self-start">
@@ -583,88 +876,255 @@ export default function Ledger() {
 
               <GlassCard className="overflow-hidden p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className="w-full text-left border-collapse table-fixed">
                     <thead>
-                      <tr className="border-b border-zinc-200/80 bg-zinc-50/80 text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                        <th className="px-4 py-3">JE ID / Date</th>
-                        <th className="px-4 py-3">Description</th>
-                        <th className="px-4 py-3">Account Lines & Party</th>
-                        <th className="px-4 py-3 text-right">Debit</th>
-                        <th className="px-4 py-3 text-right">Credit</th>
-                        <th className="px-4 py-3 text-center">Source</th>
-                        <th className="px-4 py-3 text-right pr-4">Actions</th>
+                      <tr className="border-b border-zinc-200/80 bg-zinc-50/80 text-[10px] font-black text-zinc-400 uppercase tracking-wider select-none">
+                        {jeColumns.map((col) => {
+                          const width = jeColWidths[col.key] || 120
+                          const isSorted = jeSortKey === col.key
+                          const isMenuOpen = openJeSortMenuCol === col.key
+
+                          return (
+                            <th
+                              key={col.key}
+                              style={{ width: `${width}px`, minWidth: `${width}px` }}
+                              className="relative px-3 py-3 group border-r border-zinc-200/50 last:border-r-0"
+                            >
+                              <div
+                                className={`flex items-center justify-between gap-1 ${
+                                  col.align === "right"
+                                    ? "flex-row-reverse text-right"
+                                    : col.align === "center"
+                                    ? "justify-center"
+                                    : ""
+                                }`}
+                              >
+                                <span className="truncate">{col.label}</span>
+
+                                {/* Dropdown Icon & Active Sort Indicator */}
+                                {col.key !== "actions" && (
+                                  <div className="relative flex items-center shrink-0">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setOpenJeSortMenuCol(isMenuOpen ? null : col.key)
+                                      }}
+                                      className={`p-1 rounded hover:bg-zinc-200/80 transition-colors flex items-center gap-0.5 ${
+                                        isSorted
+                                          ? "text-emerald-700 font-bold bg-emerald-100/80"
+                                          : "text-zinc-400 opacity-0 group-hover:opacity-100"
+                                      }`}
+                                      title="Sort & Filter options"
+                                    >
+                                      {isSorted ? (
+                                        jeSortDir === "asc" ? (
+                                          <ArrowUp className="size-3" />
+                                        ) : (
+                                          <ArrowDown className="size-3" />
+                                        )
+                                      ) : (
+                                        <ChevronDown className="size-3" />
+                                      )}
+                                    </button>
+
+                                    {/* Dropdown Menu Popover */}
+                                    {isMenuOpen && (
+                                      <>
+                                        <div
+                                          className="fixed inset-0 z-20 cursor-default"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setOpenJeSortMenuCol(null)
+                                          }}
+                                        />
+                                        <div
+                                          className={`absolute top-full mt-1.5 z-30 bg-white border border-zinc-200 shadow-xl rounded-xl p-1.5 min-w-[150px] text-xs font-semibold normal-case tracking-normal ${
+                                            col.align === "right" ? "right-0 text-left" : "left-0 text-left"
+                                          }`}
+                                        >
+                                          <div className="px-2 py-1 text-[10px] font-bold uppercase text-zinc-400 border-b border-zinc-100 mb-1">
+                                            Sort {col.label}
+                                          </div>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setJeSortKey(col.key)
+                                              setJeSortDir("asc")
+                                              setOpenJeSortMenuCol(null)
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                                              isSorted && jeSortDir === "asc"
+                                                ? "bg-emerald-50 text-emerald-800 font-bold"
+                                                : "text-zinc-700 hover:bg-zinc-100"
+                                            }`}
+                                          >
+                                            <ArrowUp className="size-3 text-emerald-600" />
+                                            Sort Ascending
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setJeSortKey(col.key)
+                                              setJeSortDir("desc")
+                                              setOpenJeSortMenuCol(null)
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                                              isSorted && jeSortDir === "desc"
+                                                ? "bg-emerald-50 text-emerald-800 font-bold"
+                                                : "text-zinc-700 hover:bg-zinc-100"
+                                            }`}
+                                          >
+                                            <ArrowDown className="size-3 text-emerald-600" />
+                                            Sort Descending
+                                          </button>
+                                          {isSorted && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setJeSortKey(null)
+                                                setOpenJeSortMenuCol(null)
+                                              }}
+                                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors border-t border-zinc-100 mt-1 pt-1.5"
+                                            >
+                                              <RotateCcw className="size-3" />
+                                              Clear Sort
+                                            </button>
+                                          )}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Column Resizer Handle */}
+                              <div
+                                onMouseDown={(e) => handleJeResizeStart(e, col.key)}
+                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-emerald-500/60 active:bg-emerald-600 z-10 transition-colors"
+                                title="Drag to resize column"
+                              />
+                            </th>
+                          )
+                        })}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
-                      {filteredEntries.map((ent, idx) => {
-                        const entryLines = lines.filter((l) => l.journal_entry_id === ent.id)
-                        const isReversal = ent.is_reversal_of !== null
-                        const isReversed = reversedEntryIds.has(ent.id)
+                      {sortedEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-8 text-center text-xs font-semibold text-zinc-400">
+                            No journal entries found matching search criteria.
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedEntries.map((ent, idx) => {
+                          const entryLines = lines.filter((l) => l.journal_entry_id === ent.id)
+                          const isReversal = ent.is_reversal_of !== null
+                          const isReversed = reversedEntryIds.has(ent.id)
 
-                        const totalDebit = entryLines.reduce((s, l) => s + l.debit_amount, 0)
-                        const totalCredit = entryLines.reduce((s, l) => s + l.credit_amount, 0)
+                          const totalDebit = entryLines.reduce((s, l) => s + l.debit_amount, 0)
+                          const totalCredit = entryLines.reduce((s, l) => s + l.credit_amount, 0)
 
-                        return (
-                          <tr key={`${ent.id}-${idx}`} className="hover:bg-zinc-50/60 transition-colors text-xs">
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="font-mono font-bold text-zinc-900">{ent.id}</div>
-                              <div className="text-[10px] font-medium text-zinc-400">{ent.entry_date}</div>
-                            </td>
-                            <td className="px-4 py-3 max-w-xs">
-                              <div className="font-semibold text-zinc-800 line-clamp-1">{ent.description}</div>
-                              <div className="text-[10px] font-mono text-zinc-400">By: {ent.created_by}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-1 max-w-sm">
-                                {entryLines.map((l) => {
-                                  const acc = accounts.find((a) => a.id === l.account_id || a.code === l.account_id)
-                                  return (
-                                    <div key={l.id} className="flex items-center justify-between text-[11px]">
-                                      <span className="font-mono text-zinc-700">
-                                        {acc ? `${acc.code} - ${acc.name}` : l.account_id}
-                                        {l.party_name && (
-                                          <span className="ml-1 text-[10px] font-sans font-semibold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded">
-                                            [{l.party_type}: {l.party_name}]
-                                          </span>
-                                        )}
-                                      </span>
+                          return (
+                            <tr key={`${ent.id}-${idx}`} className="hover:bg-zinc-50/60 transition-colors text-xs">
+                              <td
+                                style={{ width: `${jeColWidths.id}px` }}
+                                className="px-3 py-3 whitespace-nowrap font-mono font-bold text-zinc-900 truncate"
+                              >
+                                {ent.id}
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.entry_date}px` }}
+                                className="px-3 py-3 whitespace-nowrap font-medium text-zinc-700 truncate"
+                              >
+                                {ent.entry_date}
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.description}px` }}
+                                className="px-3 py-3 truncate"
+                              >
+                                <div className="font-semibold text-zinc-800 truncate">{ent.description}</div>
+                                <div className="text-[10px] font-mono text-zinc-400 truncate">By: {ent.created_by}</div>
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.account_lines}px` }}
+                                className="px-3 py-3 truncate"
+                              >
+                                <div className="flex flex-col gap-1 max-w-sm">
+                                  {entryLines.map((l) => {
+                                    const acc = accounts.find((a) => a.id === l.account_id || a.code === l.account_id)
+                                    return (
+                                      <div key={l.id} className="flex items-center text-[11px] truncate">
+                                        <span className="font-mono text-zinc-700 truncate">
+                                          {acc ? `${acc.code} - ${acc.name}` : l.account_id}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.party}px` }}
+                                className="px-3 py-3 truncate"
+                              >
+                                <div className="flex flex-col gap-1 max-w-xs">
+                                  {entryLines.map((l) => (
+                                    <div key={l.id} className="flex items-center text-[11px] truncate min-h-[18px]">
+                                      {l.party_name ? (
+                                        <span className="font-sans font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] truncate">
+                                          [{l.party_type ? `${l.party_type}: ` : ""}{l.party_name}]
+                                        </span>
+                                      ) : (
+                                        <span className="text-zinc-300 font-mono text-[11px]">-</span>
+                                      )}
                                     </div>
-                                  )
-                                })}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono font-bold text-zinc-900 whitespace-nowrap">
-                              ETB {totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono font-bold text-zinc-900 whitespace-nowrap">
-                              ETB {totalCredit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="px-4 py-3 text-center whitespace-nowrap">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700">
-                                {ent.source_type}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right pr-4 whitespace-nowrap">
-                              {!isReversal && !isReversed ? (
-                                <button
-                                  onClick={() => handleReverseEntry(ent.id)}
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-full transition-colors"
-                                >
-                                  <RotateCcw className="size-3" /> Reverse
-                                </button>
-                              ) : isReversed ? (
-                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                                  Reversed
+                                  ))}
+                                </div>
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.debit_amount}px` }}
+                                className="px-3 py-3 text-right font-mono font-bold text-zinc-900 whitespace-nowrap truncate"
+                              >
+                                ETB {totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.credit_amount}px` }}
+                                className="px-3 py-3 text-right font-mono font-bold text-zinc-900 whitespace-nowrap truncate"
+                              >
+                                ETB {totalCredit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.source_type}px` }}
+                                className="px-3 py-3 text-center whitespace-nowrap truncate"
+                              >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 truncate">
+                                  {ent.source_type}
                                 </span>
-                              ) : (
-                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                                  Reversal Entry
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                              </td>
+                              <td
+                                style={{ width: `${jeColWidths.actions}px` }}
+                                className="px-3 py-3 text-right pr-4 whitespace-nowrap"
+                              >
+                                {!isReversal && !isReversed ? (
+                                  <button
+                                    onClick={() => handleReverseEntry(ent.id)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-full transition-colors"
+                                  >
+                                    <RotateCcw className="size-3" /> Reverse
+                                  </button>
+                                ) : isReversed ? (
+                                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                                    Reversed
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                    Reversal Entry
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -682,68 +1142,153 @@ export default function Ledger() {
               transition={{ duration: 0.2 }}
               className="flex flex-col gap-4"
             >
-              <GlassCard className="p-4 flex items-center justify-between">
+              {/* Header & Stats Banner */}
+              <GlassCard className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-900">Multi-Level Chart of Accounts (COA)</h3>
-                  <p className="text-xs text-zinc-500">Hierarchical structure with Group parent nodes and Ledger accounts.</p>
+                  <h3 className="text-base font-black text-zinc-900 flex items-center gap-2">
+                    <FolderTree className="size-5 text-emerald-600" />
+                    ERPNext Hierarchical Chart of Accounts
+                  </h3>
+                  <p className="text-xs font-semibold text-zinc-500 mt-0.5">
+                    Structured double-entry ledger tree with 5 Root Types, Group Parent Folders, Sub-Classifications, and Postable Ledger Accounts.
+                  </p>
                 </div>
-                <button
-                  onClick={() => setShowAddAccountModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-black text-white text-xs font-bold hover:bg-zinc-800 transition-all"
-                >
-                  <Plus className="size-3.5" /> Add Account Node
-                </button>
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <div className="flex items-center gap-1.5 bg-zinc-100 px-3 py-1.5 rounded-full text-xs font-bold text-zinc-700 border border-zinc-200/60">
+                    <span className="text-zinc-400">Total:</span>
+                    <span className="font-mono text-zinc-900">{accounts.length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-full text-xs font-bold text-purple-700 border border-purple-200/60">
+                    <Folder className="size-3.5 text-purple-600" />
+                    <span>Groups:</span>
+                    <span className="font-mono">{accounts.filter(isGroupAccount).length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full text-xs font-bold text-emerald-700 border border-emerald-200/60">
+                    <FileText className="size-3.5 text-emerald-600" />
+                    <span>Ledgers:</span>
+                    <span className="font-mono">{accounts.filter(a => !isGroupAccount(a)).length}</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setNewAccCode("")
+                      setNewAccName("")
+                      setNewAccParent("")
+                      setNewAccIsGroup(false)
+                      setShowAddAccountModal(true)
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-black text-white text-xs font-bold hover:bg-zinc-800 transition-all shadow-sm ml-2"
+                  >
+                    <Plus className="size-3.5" /> Add Account Node
+                  </button>
+                </div>
               </GlassCard>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(["Asset", "Liability", "Equity", "Revenue", "Expense"] as const).map((type) => {
-                  const typeAccounts = accountsByType[type]
-                  const isCollapsed = collapsedCategories[type]
+              {/* Toolbar: Search & Expand/Collapse All */}
+              <GlassCard className="p-3 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 bg-zinc-100/90 rounded-full px-3 h-9 w-full max-w-md border border-zinc-200/60">
+                  <Search className="size-4 text-zinc-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search by Account Code or Name (e.g. 1100, Cash, Inventory)..."
+                    value={coaSearch}
+                    onChange={(e) => setCoaSearch(e.target.value)}
+                    className="w-full bg-transparent text-xs font-semibold focus:outline-none text-zinc-900 py-2"
+                  />
+                  {coaSearch && (
+                    <button onClick={() => setCoaSearch("")} className="text-zinc-400 hover:text-zinc-600">
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleExpandAllCoa}
+                    className="text-xs font-bold text-zinc-700 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-200 px-3 py-1.5 rounded-full transition-all border border-zinc-200/60"
+                  >
+                    Expand All
+                  </button>
+                  <button
+                    onClick={handleCollapseAllCoa}
+                    className="text-xs font-bold text-zinc-700 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-200 px-3 py-1.5 rounded-full transition-all border border-zinc-200/60"
+                  >
+                    Collapse All
+                  </button>
+                </div>
+              </GlassCard>
+
+              {/* 5 Root Types Hierarchy Tree Cards */}
+              <div className="flex flex-col gap-4">
+                {(
+                  [
+                    { type: "Asset", title: "Asset Accounts", code: "1", color: "emerald", icon: "🏢" },
+                    { type: "Liability", title: "Liability Accounts", code: "2", color: "amber", icon: "💳" },
+                    { type: "Equity", title: "Equity & Capital Accounts", code: "3", color: "purple", icon: "🏛️" },
+                    { type: "Revenue", title: "Income & Revenue Accounts", code: "4", color: "teal", icon: "📈" },
+                    { type: "Expense", title: "Expense Accounts", code: "5", color: "rose", icon: "📊" },
+                  ] as const
+                ).map((rootCat) => {
+                  const typeAccounts = accountsByType[rootCat.type as keyof typeof accountsByType] || []
+                  const rootAccounts = typeAccounts.filter(
+                    (a) => !a.parent_account_id || !accounts.some((p) => p.code === a.parent_account_id || p.id === a.parent_account_id)
+                  )
+                  const isRootExpanded = expandedNodes[rootCat.type] !== false
+                  const rootTotalNet = typeAccounts
+                    .filter((a) => !isGroupAccount(a))
+                    .reduce((sum, a) => sum + getAccountNetBalance(a), 0)
 
                   return (
-                    <GlassCard key={type} className="p-4 flex flex-col gap-3">
+                    <GlassCard key={rootCat.type} className="p-4 flex flex-col gap-3 overflow-hidden">
+                      {/* Root Category Header */}
                       <div
-                        onClick={() => setCollapsedCategories(prev => ({ ...prev, [type]: !prev[type] }))}
-                        className="flex items-center justify-between cursor-pointer border-b border-zinc-200/60 pb-2"
+                        onClick={() =>
+                          setExpandedNodes((prev) => ({
+                            ...prev,
+                            [rootCat.type]: !isRootExpanded,
+                          }))
+                        }
+                        className="flex items-center justify-between cursor-pointer border-b border-zinc-200/80 pb-3"
                       >
-                        <div className="flex items-center gap-2">
-                          <FolderTree className="size-4 text-emerald-600" />
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-wider">{type} Accounts</h4>
-                          <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
-                            {typeAccounts.length}
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <button className="p-1 rounded-md hover:bg-zinc-200/80 text-zinc-700 transition-colors">
+                            {isRootExpanded ? <ChevronDown className="size-4 text-zinc-900" /> : <ChevronRight className="size-4 text-zinc-500" />}
+                          </button>
+                          <span className="text-lg">{rootCat.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-xs bg-zinc-900 text-white px-2 py-0.5 rounded-full">
+                                {rootCat.code}
+                              </span>
+                              <h4 className="text-sm font-black text-zinc-950 uppercase tracking-wide">
+                                {rootCat.title}
+                              </h4>
+                              <span className="text-[10px] font-mono font-bold text-zinc-500 bg-zinc-100 px-2.5 py-0.5 rounded-full">
+                                {typeAccounts.length} accounts
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        {isCollapsed ? <ChevronRight className="size-4 text-zinc-400" /> : <ChevronDown className="size-4 text-zinc-400" />}
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase block">Total Net Balance</span>
+                            <span className="text-xs font-mono font-black text-zinc-950">
+                              ETB {rootTotalNet.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      {!isCollapsed && (
-                        <div className="flex flex-col gap-2 pt-1 max-h-[380px] overflow-y-auto pr-1">
-                          {typeAccounts.map((acc) => {
-                            const accLines = lines.filter(l => l.account_id === acc.id || l.account_id === acc.code)
-                            const debitSum = accLines.reduce((s, l) => s + l.debit_amount, 0)
-                            const creditSum = accLines.reduce((s, l) => s + l.credit_amount, 0)
-                            const net = (type === "Asset" || type === "Expense") ? debitSum - creditSum : creditSum - debitSum
-
-                            return (
-                              <div
-                                key={acc.id}
-                                className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50/80 hover:bg-zinc-100/80 transition-all border border-zinc-200/50 text-xs"
-                              >
-                                <div>
-                                  <div className="font-mono font-bold text-zinc-900 flex items-center gap-1.5">
-                                    <span>{acc.code}</span>
-                                    <span className="font-sans font-semibold text-zinc-800">{acc.name}</span>
-                                  </div>
-                                  <div className="text-[10px] text-zinc-400 font-mono">
-                                    {acc.parent_account_id ? `Child of ${acc.parent_account_id}` : "Root Group"}
-                                  </div>
-                                </div>
-                                <div className="text-right font-mono font-bold text-zinc-900">
-                                  ETB {net.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                                </div>
-                              </div>
-                            )
-                          })}
+                      {/* Tree Level Content */}
+                      {isRootExpanded && (
+                        <div className="flex flex-col gap-2 pt-1 pl-2">
+                          {rootAccounts.length === 0 ? (
+                            <div className="text-xs text-zinc-400 italic py-2 pl-4">No root accounts in this classification.</div>
+                          ) : (
+                            rootAccounts.map((acc) => renderAccountTreeNode(acc, 1))
+                          )}
                         </div>
                       )}
                     </GlassCard>
@@ -753,8 +1298,10 @@ export default function Ledger() {
             </motion.div>
           )}
 
+
+
           {/* TAB 3: AR/AP Aging & Dunning */}
-          {activeTab === "Aging" && (
+          {false && (
             <motion.div
               key="aging-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -856,7 +1403,7 @@ export default function Ledger() {
           )}
 
           {/* TAB 4: Bank Reconciliation */}
-          {activeTab === "BankRecon" && (
+          {false && (
             <motion.div
               key="bank-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -964,7 +1511,7 @@ export default function Ledger() {
           )}
 
           {/* TAB 5: Fixed Assets Register */}
-          {activeTab === "FixedAssets" && (
+          {false && (
             <motion.div
               key="assets-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -1056,7 +1603,7 @@ export default function Ledger() {
           )}
 
           {/* TAB 6: Taxation */}
-          {activeTab === "Taxation" && (
+          {false && (
             <motion.div
               key="tax-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -1118,7 +1665,7 @@ export default function Ledger() {
           )}
 
           {/* TAB 7: Budgeting & Cost Centers */}
-          {activeTab === "Budgeting" && (
+          {false && (
             <motion.div
               key="budget-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -1180,7 +1727,7 @@ export default function Ledger() {
           )}
 
           {/* TAB 8: Financial Statements */}
-          {activeTab === "Statements" && (
+          {false && (
             <motion.div
               key="statements-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -1307,46 +1854,188 @@ export default function Ledger() {
               )}
 
               {statementType === "TrialBalance" && (
-                <GlassCard className="p-0 overflow-hidden">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-200/80 bg-zinc-50/80 text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                        <th className="px-4 py-3">Account Code & Name</th>
-                        <th className="px-4 py-3">Type</th>
-                        <th className="px-4 py-3 text-right">Debit Sum</th>
-                        <th className="px-4 py-3 text-right">Credit Sum</th>
-                        <th className="px-4 py-3 text-right">Net Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 font-mono">
-                      {trialBalance.rows.map((r) => (
-                        <tr key={r.account_id} className="hover:bg-zinc-50/60">
-                          <td className="px-4 py-3 font-bold text-zinc-900">{r.code} - {r.name}</td>
-                          <td className="px-4 py-3 font-sans font-semibold text-zinc-600">{r.account_type}</td>
-                          <td className="px-4 py-3 text-right text-zinc-900">ETB {r.debit_sum.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right text-zinc-900">ETB {r.credit_sum.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right font-bold text-zinc-900">ETB {r.net_balance.toLocaleString()}</td>
+                <GlassCard className="p-0 overflow-hidden flex flex-col">
+                  {/* Integrated Toolbar */}
+                  <div className="p-3 bg-zinc-50/90 border-b border-zinc-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
+                      <span className="text-[10px] font-black uppercase text-zinc-400 mr-1 flex items-center gap-1 shrink-0">
+                        <Filter className="size-3" /> Category:
+                      </span>
+                      {[
+                        { id: "ALL", label: "All 5 Categories", count: trialBalance.rows.length },
+                        { id: "Asset", label: "Assets", count: trialBalance.rows.filter(r => r.account_type === "Asset").length },
+                        { id: "Liability", label: "Liabilities", count: trialBalance.rows.filter(r => r.account_type === "Liability").length },
+                        { id: "Equity", label: "Equity", count: trialBalance.rows.filter(r => r.account_type === "Equity").length },
+                        { id: "Revenue", label: "Revenue", count: trialBalance.rows.filter(r => r.account_type === "Revenue").length },
+                        { id: "Expense", label: "Expenses", count: trialBalance.rows.filter(r => r.account_type === "Expense").length },
+                      ].map((cat) => {
+                        const isActive = tbCategoryFilter === cat.id
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => setTbCategoryFilter(cat.id)}
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                              isActive
+                                ? "bg-zinc-900 text-white shadow-xs"
+                                : "bg-white text-zinc-600 hover:bg-zinc-200/70 border border-zinc-200/80"
+                            }`}
+                          >
+                            <span>{cat.label}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                              isActive ? "bg-zinc-700 text-zinc-100" : "bg-zinc-100 text-zinc-500"
+                            }`}>
+                              {cat.count}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        value={tbBalanceFilter}
+                        onChange={(e) => setTbBalanceFilter(e.target.value)}
+                        className="bg-white border border-zinc-200/80 text-zinc-800 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none"
+                      >
+                        <option value="ALL">All Balances</option>
+                        <option value="NON_ZERO">Non-Zero</option>
+                        <option value="DEBIT_ONLY">Debits Only</option>
+                        <option value="CREDIT_ONLY">Credits Only</option>
+                      </select>
+
+                      <div className="flex items-center gap-2 bg-white border border-zinc-200/80 rounded-lg px-2.5 py-1 w-44 focus-within:ring-1 focus-within:ring-emerald-500">
+                        <Search className="size-3 text-zinc-400 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search..."
+                          value={tbSearchTerm}
+                          onChange={(e) => setTbSearchTerm(e.target.value)}
+                          className="w-full bg-transparent text-xs font-semibold focus:outline-none text-zinc-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse table-fixed">
+                      <thead>
+                        <tr className="border-b border-zinc-200/80 bg-zinc-100/70 text-[10px] font-black text-zinc-500 uppercase tracking-wider select-none">
+                          {tbColumns.map((col) => {
+                            const width = tbColWidths[col.key] || 120
+                            const isSorted = tbSortKey === col.key
+                            return (
+                              <th
+                                key={col.key}
+                                style={{ width: `${width}px`, minWidth: `${width}px` }}
+                                className="relative px-3 py-2.5 border-r border-zinc-200/50 last:border-r-0"
+                              >
+                                <div className={`flex items-center justify-between gap-1 ${col.align === "right" ? "flex-row-reverse text-right" : col.align === "center" ? "justify-center" : ""}`}>
+                                  <span className="truncate">{col.label}</span>
+                                  <button
+                                    onClick={() => {
+                                      if (tbSortKey === col.key) {
+                                        setTbSortDir(tbSortDir === "asc" ? "desc" : "asc")
+                                      } else {
+                                        setTbSortKey(col.key)
+                                        setTbSortDir("asc")
+                                      }
+                                    }}
+                                    className={`p-0.5 rounded hover:bg-zinc-200/80 ${isSorted ? "text-emerald-700 bg-emerald-100" : "text-zinc-400"}`}
+                                  >
+                                    {isSorted && tbSortDir === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
+                                  </button>
+                                </div>
+                                <div
+                                  onMouseDown={(e) => handleTbResizeStart(e, col.key)}
+                                  className="absolute top-0 right-0 bottom-0 w-2 cursor-col-resize hover:bg-emerald-500/50 z-10"
+                                />
+                              </th>
+                            )
+                          })}
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-zinc-300 bg-zinc-50 font-mono font-black text-sm">
-                        <td colSpan={2} className="px-4 py-3 text-zinc-900">Trial Balance Totals</td>
-                        <td className="px-4 py-3 text-right text-zinc-900">ETB {trialBalance.totalDebits.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-zinc-900">ETB {trialBalance.totalCredits.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-emerald-600">
-                          {trialBalance.isBalanced ? "BALANCED" : "IMBALANCED"}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 text-xs font-mono">
+                        {sortedTbRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-6 text-center text-zinc-400 font-sans italic">
+                              No matching account records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          sortedTbRows.map((r) => {
+                            const categoryStyleMap: Record<string, string> = {
+                              Asset: "bg-emerald-100/80 text-emerald-800 border-emerald-200/80",
+                              Liability: "bg-amber-100/80 text-amber-800 border-amber-200/80",
+                              Equity: "bg-purple-100/80 text-purple-800 border-purple-200/80",
+                              Revenue: "bg-teal-100/80 text-teal-800 border-teal-200/80",
+                              Expense: "bg-rose-100/80 text-rose-800 border-rose-200/80",
+                            }
+                            const isDebit = r.net_balance > 0 || (r.net_balance === 0 && r.debit_sum > r.credit_sum)
+                            const isCredit = r.net_balance < 0 || (r.net_balance === 0 && r.credit_sum > r.debit_sum)
+
+                            return (
+                              <tr key={r.account_id} className="hover:bg-zinc-50/80 transition-colors">
+                                <td className="px-3 py-2">
+                                  <span className="font-mono font-black text-zinc-900 bg-zinc-200/90 px-1.5 py-0.5 rounded text-[11px]">
+                                    {r.code}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 font-sans font-bold text-zinc-900 truncate">{r.name}</td>
+                                <td className="px-3 py-2 font-sans">
+                                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${categoryStyleMap[r.account_type] || "bg-zinc-100"}`}>
+                                    {r.account_type}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-right font-bold text-zinc-900">
+                                  {r.debit_sum > 0 ? `ETB ${r.debit_sum.toLocaleString()}` : "-"}
+                                </td>
+                                <td className="px-3 py-2 text-right font-bold text-zinc-900">
+                                  {r.credit_sum > 0 ? `ETB ${r.credit_sum.toLocaleString()}` : "-"}
+                                </td>
+                                <td className="px-3 py-2 text-right font-black text-zinc-950">
+                                  ETB {r.net_balance.toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2 text-center font-sans">
+                                  {isDebit ? (
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Debit</span>
+                                  ) : isCredit ? (
+                                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">Credit</span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">Zero</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-zinc-300 bg-zinc-100/90 font-mono font-black text-xs">
+                          <td colSpan={3} className="px-3 py-2.5 font-sans text-zinc-900">Trial Balance Totals</td>
+                          <td className="px-3 py-2.5 text-right text-zinc-950">ETB {tbFilteredTotalDebits.toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right text-zinc-950">ETB {tbFilteredTotalCredits.toLocaleString()}</td>
+                          <td colSpan={2} className="px-3 py-2.5 text-right font-sans">
+                            {trialBalance.isBalanced ? (
+                              <span className="text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full text-[11px] inline-flex items-center gap-1">
+                                <CheckCircle2 className="size-3" /> BALANCED
+                              </span>
+                            ) : (
+                              <span className="text-rose-700 font-bold bg-rose-100 px-2.5 py-0.5 rounded-full text-[11px]">
+                                IMBALANCED
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </GlassCard>
               )}
             </motion.div>
           )}
 
           {/* TAB 9: Payment Reconciliation */}
-          {activeTab === "Reconciliation" && (
+          {false && (
             <motion.div
               key="recon-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -1700,10 +2389,39 @@ export default function Ledger() {
                     />
                   </div>
                   <div>
+                    <label className="font-bold text-zinc-700 mb-1 block">Account Classification Node Type</label>
+                    <div className="flex items-center gap-4 bg-zinc-50 p-2.5 rounded-xl border border-zinc-200">
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-800">
+                        <input
+                          type="radio"
+                          name="accGroupType"
+                          checked={!newAccIsGroup}
+                          onChange={() => setNewAccIsGroup(false)}
+                          className="accent-emerald-600"
+                        />
+                        <span>Ledger Account (Postable)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-800">
+                        <input
+                          type="radio"
+                          name="accGroupType"
+                          checked={newAccIsGroup}
+                          onChange={() => setNewAccIsGroup(true)}
+                          className="accent-purple-600"
+                        />
+                        <span>Group Account (Parent Folder)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
                     <label className="font-bold text-zinc-700 mb-1 block">Account Type</label>
                     <select
                       value={newAccType}
-                      onChange={(e) => setNewAccType(e.target.value as any)}
+                      onChange={(e) => {
+                        const selectedType = e.target.value as any
+                        setNewAccType(selectedType)
+                        setNewAccParent("")
+                      }}
                       className="w-full p-2.5 rounded-xl border border-zinc-200 bg-zinc-50 font-semibold"
                     >
                       <option value="Asset">Asset</option>
@@ -1714,16 +2432,18 @@ export default function Ledger() {
                     </select>
                   </div>
                   <div>
-                    <label className="font-bold text-zinc-700 mb-1 block">Parent Group Account (Optional)</label>
+                    <label className="font-bold text-zinc-700 mb-1 block">Parent Group Account ({newAccType} Accounts)</label>
                     <select
                       value={newAccParent}
                       onChange={(e) => setNewAccParent(e.target.value)}
                       className="w-full p-2.5 rounded-xl border border-zinc-200 bg-zinc-50 font-semibold"
                     >
-                      <option value="">(Root Account - No Parent)</option>
-                      {accounts.map(a => (
-                        <option key={a.id} value={a.code}>{a.code} - {a.name}</option>
-                      ))}
+                      <option value="">(Root {newAccType} Account - No Parent)</option>
+                      {accounts
+                        .filter((a) => a.account_type === newAccType)
+                        .map((a) => (
+                          <option key={a.id} value={a.code}>{a.code} - {a.name}</option>
+                        ))}
                     </select>
                   </div>
 

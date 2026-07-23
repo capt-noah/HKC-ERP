@@ -59,27 +59,31 @@ A layered background that establishes a distinct brand atmosphere.
 
 ## 🗺️ Application Architecture & Routes
 
-The system uses a full-screen layout split into four main operational domains:
+The system uses a full-screen layout split into five main operational domains:
 
 ```
 / (Root Redirect) ──► /sales
-                      ├── /sales (Inventory & Storage Heatmap)
-                      ├── /sales/stock (Stock & Products Registry)
-                      │   ├── Active Products (Storage Breakdown, Ledger Adjustments)
-                      │   └── Regulatory Docs (CoAs, Compliance Licensing)
-                      ├── /sales/purchase-orders
-                      └── /sales/sales-orders
-                      
-/finance ───────────► /finance (Overview Charts)
-                      ├── /finance/ledger (General Ledger & Aging)
+                      ├── /sales (Sales Revenue Analytics & Conversion Pipeline)
+                      ├── /sales/purchase-orders (Purchase Orders & Supplier Procurement)
+                      └── /sales/sales-orders (Sales Orders & Order Fulfillment)
+
+/inventory ─────────► /inventory (Inventory & Storage Operations Dashboard)
+                      ├── /inventory/stock (Stock & Products Registry, Store Transfers)
+                      └── /inventory/reports (Inventory Movement & Valuation Analytics)
+
+/finance ───────────► /finance (Overview Charts & Financial Ratios)
+                      ├── /finance/ledger (General Ledger, Journal Entries, COA, Periods, Forex Revaluation)
                       ├── /finance/invoices (Invoicing Engine)
-                      └── /finance/expenses (Expense Ledger)
-                      
+                      ├── /finance/expenses (Expense Ledger, Recurring Schedules & Fleet)
+                      ├── /finance/banking (Bank Accounts & Reconciliations)
+                      ├── /finance/assets (Fixed Assets, Tax & Cost Center Budgets)
+                      └── /finance/reports (Financial Statements, Trial Balance & AR/AP Aging)
+
 /hr ────────────────► /hr (Overview & Team KPIs)
                       ├── /hr/employees (Staff Roster)
                       ├── /hr/payroll (Disbursement Dashboard)
                       └── /hr/attendance-leave (Attendance & Leave Matrix)
-                      
+
 /admin ─────────────► /admin (Module Control Center)
                       ├── /admin/users (Access Controls)
                       └── /admin/settings (System Configurations)
@@ -93,58 +97,64 @@ This section details the functional purpose, database/state contents, and specif
 
 ---
 
-### 🛍️ Sales & Inventory Section
+### 🛍️ Sales Section
 
-#### 1. Inventory Dashboard (`/sales`)
-- **Functional Purpose:** Offers real-time overview telemetry of warehouse performance, product allocations, and critical stock events.
+#### 1. Sales Dashboard (`/sales`)
+- **Functional Purpose:** Offers top-line executive sales performance tracking, revenue growth charts, sales order pipeline metrics, and commercial contract execution.
 - **Contents (Data & States):**
-  - **KPIs:** Total SKUs (12,482), Low-Stock alerts (48), Near Expiry alerts (12), Open Orders (342).
-  - **Stock Allocation:** Percentage breakdown of categories: *Medical Supplies* (85%), *Food & Nutrition* (62%), *General Goods* (38%).
-  - **Storage Activity:** Total active capacity used versus idle space.
-  - **Top Moving Items:** Surgical Masks, Sterile Gloves with active metrics.
-  - **Expiry Alerts:** Proximity list containing batch tags and warning horizons (e.g. Amoxicillin 500mg, 12 Days remaining).
+  - **Commercial Sales KPIs:** Total Sales Revenue, Purchase Capital Commitments, Active Sales Orders, and Revenue Growth Rates.
+  - **Revenue & Capital Trajectory:** Historical monthly sales revenue performance compared against procurement capital outflow.
+  - **Pipeline Overview:** Active sales quotes, confirmed orders, and fulfillment conversions.
 - **How it is Showed (Visualizations):**
-  - **Translucent Progress Trackers:** Allocation percentages are shown with horizontal animated loading bars representing capacity.
-  - **Storage Activity Matrix:** A spectacular, dark-themed **stair-step dot matrix grid** depicting capacity utilization. Highlights active slots in amber (`#ffe270`) and idle slots in muted dark gray.
-  - **Interactive Sparklines:** Uses inline **SVG path curves** representing sale trend graphs for top moving items.
-  - **Amber Proximity Badges:** Bold proximity alerts emphasizing critical warning thresholds.
+  - **Interactive Area Charts:** Revenue vs. Purchase Capital curves rendered with Recharts API.
+  - **Executive Metric Cards:** High-contrast glass cards with trend icons and quick action triggers.
 
-#### 2. Stock Registry (`/sales/stock` or `/inventory/stock`)
-- **Functional Purpose:** Displays the comprehensive catalog of active inventory products, manages regulatory compliance documentation, and handles Material Transfer Notes (MTNs) between warehouses.
+#### 2. Purchase Orders (`/sales/purchase-orders`)
+- **Functional Purpose:** Tracks incoming supply chain procurement orders, draft vendor agreements, and supplier delivery tracking.
 - **Contents (Data & States):**
-  - **Active Products:** Registry of product codes, SKU, category, warehouse allocations, physical units, active batch, and expiry dates.
-  - **Regulatory Docs:** Official Certificates of Analysis (CoAs) and laboratory compliance licenses.
-  - **Store-to-Store Transfers (New):** A high-compliance material transfer note tracking ledger between warehouses. It features five screens supporting active state machine flows:
-    - *Issued → Received* (Happy path)
-    - *Issued → Discrepancy* (Discrepancy path)
-  - **Simulation Control Panel:** Toggles mock user context (Store Manager vs. Operator at different locations) to simulate and test role-based warehouse authorization constraints.
+  - **Procurement KPIs:** Draft POs, In Transit POs, Delayed POs.
+  - **Purchase Order List:** Supplier partners, transit state, document dates, itemized procurement lines, and total capital allocations.
 - **How it is Showed (Visualizations):**
-  - **Registry Toggle Tabs:** Tab bar dividing Active Products, Store Transfers, and Regulatory Docs.
-  - **Interactive Ledger Adjuster:** Includes a **real-time slider modal** allowing operators to preview and post immediate stock changes (debit/credit transactions) directly from the item card.
-  - **New Product Form Drawer:** A clean form panel featuring dynamic checkbox bindings, structured input layouts, and a file drag-and-drop zone to attach PDF analysis reports.
-  - **Store Transfers Workspace:**
-    - **Session Simulator Bar:** A subtle, dark borderless console matching our emerald brand color scheme that houses current user switches and role keys.
-    - **Transfer Creation Form Drawer:** A full-bleed sidebar panel that restricts selection based on the active warehouse, enables custom product name input with suggestions, and dynamically aggregates accumulative total line-item quantities in real-time.
-    - **Material Transfer Note (MTN) Document View:** Laid out like an official corporate letterhead. Displays itemized lists, dual digital signature blocks with custom handwritten script-fonts, timestamps, and active status pills.
-    - **Circular Company Stamp:** For completed transfers (Received state), an elegant green double-circle stamp rotated by `-6deg` is stamped on the document.
-    - **Discrepancy Warning Badges:** Highlighted with bright amber alerts (`#f59e0b`) showing detailed discrepancy remarks and logs when incoming inventory matches are rejected.
+  - **Split-Panel Workspace:** Filterable PO list on the left and a detailed document inspector view on the right with print capabilities and transit progress bars.
 
-#### 3. Purchase Orders (`/sales/purchase-orders`)
-- **Functional Purpose:** Tracks incoming supply chain orders, draft agreements, and delayed supplier deliveries.
+#### 3. Sales Orders (`/sales/sales-orders`)
+- **Functional Purpose:** Manages the customer conversion pipeline from initial quotation to picking, packing, and shipment.
 - **Contents (Data & States):**
-  - **Procurement KPIs:** Draft POs (12), In Transit (8), Delayed POs (3).
-  - **Purchase Order List:** Master detail listing representing supplier partners, transit state, document dates, and total capital allocations.
-  - **Itemized Breakdown:** Detailed catalog lines specifying parts, SKUs, ordered quantities, unit pricing, and overall PO totals.
+  - **Order Pipeline Stages:** Quotes, Confirmed, Picking, Shipped.
+  - **Client Records:** Order reference codes, client details, total amounts, assignee avatars, picking progression percentages, and document attachments.
 - **How it is Showed (Visualizations):**
-  - **Split-Panel Screen:** The left third contains a dark-themed glass container holding a search bar and filter pills. The right two-thirds render a document view of the chosen PO with printer actions, itemized lists, and transit progress status bars.
+  - **Interactive Kanban Pipeline:** Four-stage drag/hover pipeline columns with spring animations, picking progress bars, and priority status indicators.
 
-#### 4. Sales Orders (`/sales/sales-orders`)
-- **Functional Purpose:** Manages the customer conversion pipeline from initial quote down to active logistics shipping.
+---
+
+### 📦 Inventory Section
+
+#### 1. Inventory Dashboard (`/inventory`)
+- **Functional Purpose:** Offers real-time overview telemetry of warehouse performance, product allocations, batch QA approvals, and critical stock events.
 - **Contents (Data & States):**
-  - **Quotes, Confirmed, Picking, Shipped states.**
-  - Detailed client name, order reference codes, total amount, assignee avatar initials, picking progression percentages, and attachments.
+  - **Inventory KPIs:** Total SKUs (12,482), Low-Stock alerts (48), Near Expiry alerts (12), Open Stock Movements.
+  - **Stock Allocation:** Category percentage breakdowns (*Medical Supplies*, *Food & Nutrition*, *General Goods*).
+  - **Storage Activity & Role Workspaces:** Overview, Goods Reception, and QA Technical Inspection modes.
 - **How it is Showed (Visualizations):**
-  - **Interactive Kanban Pipeline:** Built with four columns tracking each stage. Order cards support spring-based lift animations on hover, progress indicators, and visual alert borders indicating urgent priority states.
+  - **Storage Activity Matrix:** Stair-step dot matrix grid depicting warehouse slot utilization in amber and dark gray.
+  - **Translucent Progress Trackers:** Category allocation loading bars and proximity alert badges.
+  - **Role Mode Selector:** Interactive toggle between Stock Overview, Goods Reception, and QA Technical Inspection.
+
+#### 2. Stock Registry (`/inventory/stock`)
+- **Functional Purpose:** Catalog of active inventory products, regulatory compliance documentation (Certificates of Analysis), and Store-to-Store Material Transfer Notes (MTNs).
+- **Contents (Data & States):**
+  - **Active Products:** Product codes, SKUs, categories, warehouse allocations, physical stock, active batch tags, and expiry horizons.
+  - **Regulatory Docs:** Official CoAs and laboratory compliance licenses.
+  - **Store-to-Store Transfers:** Material Transfer Note tracking ledger between warehouses with role-based simulation.
+- **How it is Showed (Visualizations):**
+  - **Registry Toggle Tabs:** Active Products, Store Transfers, and Regulatory Docs.
+  - **Interactive Stock Adjuster:** Slider modal to preview and post immediate stock adjustments.
+  - **MTN Document & Stamp:** Letterhead layout with digital signature blocks and green circular company stamp.
+
+#### 3. Inventory Reports (`/inventory/reports`)
+- **Functional Purpose:** Provides inventory valuation reports, turnover velocity analysis, category movement trends, and reorder point alerts.
+- **Contents (Data & States):** Total stock valuation (ETB), turnover ratios, movement logs, and stock aging analysis.
+- **How it is Showed (Visualizations):** Exportable analytical charts, category pie charts, and tabular movement summaries.
 
 ---
 
@@ -163,27 +173,53 @@ This section details the functional purpose, database/state contents, and specif
   - **Financial Health Radar:** Visual gauge indicators for liquidity ratios and operating margin efficiency.
 
 #### 2. General Ledger & ERPNext Financial Engine (`/finance/ledger`)
-- **Functional Purpose:** An enterprise-grade, ERPNext-aligned double-entry accounting engine for multi-currency general ledger management, financial reporting, budgeting, asset depreciation, tax compliance, and period closing.
+- **Functional Purpose:** Core double-entry general ledger voucher management, journal entry creation, chart of accounts tree, fiscal accounting period locking, and foreign currency exchange rate revaluation.
 - **Contents (Data & States):**
   - **Chart of Accounts (COA):** Standard 5-root hierarchical tree (1000 Assets, 2000 Liabilities, 3000 Equity, 4000 Revenue, 5000/6000 Expenses) with parent-child account nodes, account types (Bank, Cash, Receivable, Payable, Fixed Asset, Cost of Goods Sold, Expense, Income), and currency specifications.
   - **Journal Entries (JE):** Real-time double-entry posting ledger with unique IDs (`JE-YYYY-XXXX`), document posting dates, accounting remarks, cost center tags, debit/credit entries, source reference tracking, and auto-balancing validation (`Total Debit == Total Credit`).
-  - **Accounts Receivable & Payable Aging:** Detailed customer and supplier sub-ledgers with aging buckets (Current, 1-30 days, 31-60 days, 61-90 days, 90+ days) and payment history logs.
-  - **Multi-Currency & Exchange Rate Revaluation:** Base currency (USD) vs. foreign currency (EUR, GBP, JPY) transaction logging with automated rate revaluation posting gains/losses to `4200 - Foreign Exchange Gain/Loss`.
-  - **Payment Reconciliation & Matching:** Automated and manual invoice-to-payment matching, handling partial payments, advance payments, and posting unallocated balances.
-  - **Budgeting & Cost Center Analytics:** Cost center allocation (Sales, Operations, R&D, Administration) with budget limit checking, threshold warning alerts (>80%), and variance reporting.
-  - **Fixed Assets & Depreciation:** Fixed Asset registry tracking purchase cost, salvage value, useful life (years), straight-line depreciation schedules, and automated journal posting (`6500 Depreciation Expense` vs `1510 Accumulated Depreciation`).
-  - **Accounting Periods & Fiscal Year Closing:** Period locking mechanisms (Prevent entries in closed periods), fiscal year end closing workflows, and automated transfer of net profit/loss to `3100 Retained Earnings`.
-  - **Bank Reconciliation:** Matching bank statement lines against internal GL bank/cash entries, uncleared deposit tracking, and bank reconciliation statements.
-  - **Tax Templates & Tax Engine:** Configurable tax rules (Standard GST 18%, Exempt, Reverse Charge), sales/purchase tax ledgers (`2200 Output Tax` / `1300 Input Tax Credit`), and tax liability reporting.
-  - **Financial Statements:** Live generation of **Balance Sheet**, **Income Statement (Profit & Loss)**, **Trial Balance**, and **Cash Flow Statement** derived directly from real GL transactions.
+  - **Accounting Periods & Fiscal Year Closing:** Period locking mechanisms (prevent entries in closed periods), fiscal year end closing workflows, and automated transfer of net profit/loss to `3100 Retained Earnings`.
+  - **Multi-Currency & Exchange Rate Revaluation:** Base currency (ETB/USD) vs. foreign currency (EUR, GBP, JPY) transaction logging with automated rate revaluation posting unrealized gains/losses to `4200 - Foreign Exchange Gain/Loss`.
 - **How it is Showed (Visualizations):**
   - **Hierarchical COA Tree View:** Collapsible/expandable account categories with color-coded root node badges, real-time running balances, and account creation modals.
-  - **Ledger Audit & Journal Entry Table:** Monospace `JetBrains Mono` formatting for perfect tabular alignment of debit, credit, and running balance values.
-  - **Interactive Multi-Tab Workspace:** Top tab bar allowing seamless navigation between *General Ledger*, *Chart of Accounts*, *AR/AP Aging*, *Multi-Currency*, *Payment Reconciliation*, *Budgeting & Cost Centers*, *Fixed Assets*, *Accounting Periods*, *Bank Reconciliation*, *Tax Ledger*, and *Financial Statements*.
+  - **Ledger Audit & Journal Entry Table:** Monospace `JetBrains Mono` formatting for tabular alignment of debit, credit, and voucher status.
+  - **SubPage Navigation Bar:** Fast context switching between *Journal Entries*, *Chart of Accounts*, *Accounting Periods*, and *Forex Revaluation*.
   - **Self-Balancing Entry Modal:** Modal dialog with live debit/credit tallying, red imbalance alerts, cost center selector dropdowns, and draft vs. posted controls.
-  - **Financial Statement Print/Export Layout:** Clean formatted report views with expandable account subtotals and one-click PDF/CSV export capabilities.
 
-#### 3. Invoices Engine (`/finance/invoices`)
+#### 3. Banking & Reconciliations (`/finance/banking`)
+- **Functional Purpose:** Treasury and cash management for commercial bank accounts, bank statement feeds, line-by-line reconciliation against general ledger cash records, and payment matching.
+- **Contents (Data & States):**
+  - **Commercial Bank Accounts:** Account registry (e.g., Commercial Bank of Ethiopia, Dashen Bank, Awash Bank), IBAN/SWIFT codes, currency, GL cash account links (`ACC-1010`, `ACC-1020`), and reconciled vs. uncleared book balances.
+  - **Statement Reconciliation Engine:** Unreconciled bank statement feeds, date ranges, reference codes, debit/credit amounts, matching status (`Matched`, `Unmatched`, `Pending`), and difference auto-calculation.
+  - **Payment Matching:** Auto-matching system comparing transaction references and amounts between bank statements and customer/vendor invoices.
+- **How it is Showed (Visualizations):**
+  - **Bank Account Balance Cards:** Glass cards displaying current available balances, uncleared deposits, and pending reconciliation badges.
+  - **Reconciliation Audit Split View:** Interactive side-by-side transaction viewer to check off bank statement rows against internal GL ledger entries with instant status update toasts.
+
+#### 4. Fixed Assets, Tax & Budgeting (`/finance/assets`)
+- **Functional Purpose:** Capital equipment asset tracking, automated straight-line depreciation schedules, tax rule configurations (VAT, TDS), and departmental budget policy enforcement.
+- **Contents (Data & States):**
+  - **Fixed Assets Registry:** Capital assets (Vehicles, Machinery, IT Hardware, Buildings, Office Equipment) with purchase date, acquisition cost, salvage value, useful life (years), and accumulated depreciation tracking.
+  - **Taxation Engine:** Tax templates (Standard VAT 15%, Zero-Rated 0%, Withholding TDS 2%/5%), GL account assignments (`2200 Sales Output VAT`, `1300 Purchase Input VAT`), and YTD net tax payable calculations.
+  - **Departmental Cost Centers & Budget Controls:** Cost center budgets (Operations, Sales, R&D, Executive) with YTD actual spend tracking, variance percentages, and policy control enforcement (`Warn` vs. `Stop`).
+- **How it is Showed (Visualizations):**
+  - **Asset Registry Table & Post Depreciation Action:** Clean tabular view with net book value calculations and single-click straight-line depreciation posting.
+  - **Budget Variance Gauge Cards:** Progress indicators color-coding budget usage thresholds (green under 80%, red over 80%) with policy badges.
+  - **Capital Asset Registration Modal:** Form drawer to register new equipment assets with initial salvage value and useful life parameters.
+
+#### 5. Financial Statements & Reports (`/finance/reports`)
+- **Functional Purpose:** Enterprise financial reporting engine generating live account-wise General Ledger reports, AR/AP aging subledgers, trial balance worksheet, and official financial statements directly from GL postings.
+- **Contents (Data & States):**
+  - **Account-Wise General Ledger (GL):** ERPNext-standard transaction ledger report with multi-criteria filtering (Account Code, Voucher Type, Party Name, Date Range, Keyword Search), against-account tracking, opening balance calculations, and cumulative line-by-line running balances.
+  - **Trial Balance Worksheet:** Comprehensive 5-category trial balance statement verifying fundamental accounting equality (`Total Debits == Total Credits`). Features separate account code and account name columns, category filtering across all 5 account types (*Assets*, *Liabilities*, *Equity*, *Revenue*, *Expenses*), balance status filters (*All*, *Non-Zero*, *Debit Only*, *Credit Only*), and keyword search.
+  - **Financial Statements:** Live **Balance Sheet**, **Income Statement (Profit & Loss)**, and **Cash Flow Statement** derived dynamically from real account ledger balances.
+  - **Accounts Receivable & Payable Aging:** Detailed customer and supplier sub-ledgers with aging buckets (Current, 1-30 days, 31-60 days, 61-90 days, 90+ days) and dunning notice dispatch tracking.
+- **How it is Showed (Visualizations):**
+  - **Trial Balance Table & Resizing Engine:** Full-featured interactive table with draggable column resizing handles, popover column sorting (ascending/descending per column), category badge pills, balance status chips, search input, and real-time grand totals footer.
+  - **General Ledger Account Report Tab:** Tabular transaction view displaying Posting Date, Account Code & Name, Voucher Type & Reference, Party / Remarks, Contra Against-Account, Debit, Credit, and Running Balance with live KPI metric strip.
+  - **Interactive Report Views:** Structured financial statement views with expandable account subtotals, net profit calculations, and one-click PDF/CSV export triggers.
+  - **Aging Heatmap & Dunning Notice Modal:** Color-coded aging buckets highlighting overdue receivables with one-click dunning notice generation.
+
+#### 6. Invoices Engine (`/finance/invoices`)
 - **Functional Purpose:** Full-lifecycle invoicing management for customer Accounts Receivable (AR) Invoices, integrated with ERPNext-style tax templates, payment terms, discount structures, draft status handling, and automatic GL journal entry posting.
 - **Contents (Data & States):**
   - **AR Executive Summary KPIs:** Total AR Exposure (uncollected receivables balance), Total Collections Received (cash/bank), Overdue AR Amount (past due date), and Active Invoices Count.

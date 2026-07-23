@@ -4,12 +4,7 @@ import {
   Landmark,
   ArrowRightLeft,
   CheckCircle2,
-  Download,
-  Plus,
-  Search,
-  Check,
-  Building,
-  RefreshCw
+  Download
 } from "lucide-react"
 import { FloatingNav } from "@/components/FloatingNav"
 import { GlassCard } from "@/components/GlassCard"

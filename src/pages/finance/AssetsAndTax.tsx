@@ -5,11 +5,7 @@ import {
   Receipt,
   PieChart,
   Plus,
-  Check,
-  X,
-  TrendingUp,
-  ShieldCheck,
-  Calculator
+  X
 } from "lucide-react"
 import { FloatingNav } from "@/components/FloatingNav"
 import { GlassCard } from "@/components/GlassCard"
@@ -112,7 +108,7 @@ export default function AssetsAndTax() {
   const handleRegisterAsset = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newAssetName || !newAssetCost) {
-      showToast("Validation Error", "error", "Asset name and acquisition cost are required.")
+      showToast("Validation Error", "warning", "Asset name and acquisition cost are required.")
       return
     }
 

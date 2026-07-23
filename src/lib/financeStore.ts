@@ -20,6 +20,7 @@ export interface AccountItem {
   account_type: "Asset" | "Liability" | "Equity" | "Revenue" | "Expense"
   parent_account_id: string | null
   is_active: boolean
+  is_group?: boolean
 }
 
 export interface JournalEntry {
